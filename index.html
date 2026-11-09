@@ -1,0 +1,2621 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BloomOS｜孕期全景看板</title>
+    <meta name="description" content="BloomOS：孕期时间线、产检日历、日常记录与本机备份。">
+    <meta name="theme-color" content="#F6F5F8">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Bloom孕期">
+    <meta name="application-name" content="BloomOS">
+    <meta name="format-detection" content="telephone=no">
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+
+    <!-- Production-compiled Tailwind stylesheet (included in this repository) -->
+    <link rel="stylesheet" href="./styles.css?v=1.0.0">
+    <!-- Lucide Icons -->
+    <script defer src="./icons.js?v=1.0.0"></script>
+
+    <style>
+        :root {
+            --glass-blur: 30px;
+            --glass-opacity: 0.64;
+            --glass-border-light: rgba(255, 255, 255, 0.78);
+            --glass-border-subtle: rgba(255, 255, 255, 0.42);
+            --glass-shadow: 0 20px 45px -12px rgba(15, 23, 42, 0.08), 0 4px 16px -2px rgba(15, 23, 42, 0.04);
+            --bg-base: #F6F5F8;
+            --orb-1: #FF2D55;
+            --orb-2: #FF9500;
+            --orb-3: #AF52DE;
+            --orb-4: #32ADE6;
+        }
+
+        html.dark {
+            --glass-opacity: 0.48;
+            --glass-border-light: rgba(255, 255, 255, 0.22);
+            --glass-border-subtle: rgba(255, 255, 255, 0.09);
+            --glass-shadow: 0 24px 50px -12px rgba(0, 0, 0, 0.65), 0 4px 20px -2px rgba(0, 0, 0, 0.45);
+            --bg-base: #060811;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+            transition: background-color 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.35);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 45, 85, 0.5);
+        }
+
+        /* ============================================================================
+           Apple iOS 27 / macOS Tahoe "Liquid Glass" 核心材质系统
+        ============================================================================ */
+        .liquid-glass-card {
+            position: relative;
+            background: linear-gradient(
+                135deg,
+                rgba(255, 255, 255, calc(var(--glass-opacity) + 0.14)) 0%,
+                rgba(255, 255, 255, calc(var(--glass-opacity) - 0.06)) 55%,
+                rgba(255, 255, 255, calc(var(--glass-opacity) + 0.04)) 100%
+            );
+            backdrop-filter: blur(var(--glass-blur)) saturate(200%) brightness(1.03);
+            -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(200%) brightness(1.03);
+            border: 1px solid var(--glass-border-subtle);
+            box-shadow:
+                var(--glass-shadow),
+                inset 0 1.5px 1.5px 0 var(--glass-border-light),
+                inset 0 -1px 1px 0 rgba(255, 255, 255, 0.25);
+            transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+                        box-shadow 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+                        border-color 0.32s ease;
+        }
+
+        html.dark .liquid-glass-card {
+            background: linear-gradient(
+                135deg,
+                rgba(28, 34, 55, calc(var(--glass-opacity) + 0.14)) 0%,
+                rgba(15, 20, 36, calc(var(--glass-opacity) - 0.04)) 60%,
+                rgba(24, 30, 50, calc(var(--glass-opacity) + 0.05)) 100%
+            );
+            backdrop-filter: blur(var(--glass-blur)) saturate(190%) brightness(1.06);
+            -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%) brightness(1.06);
+        }
+
+        /* 鼠标跟随动态高光反射层 (Cursor-Reactive Specular Glare) */
+        .liquid-glass-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            pointer-events: none;
+            background: radial-gradient(
+                480px circle at var(--mouse-x, 50%) var(--mouse-y, 0%),
+                rgba(255, 255, 255, 0.42),
+                transparent 55%
+            );
+            opacity: 0;
+            transition: opacity 0.35s ease;
+            z-index: 1;
+        }
+        html.dark .liquid-glass-card::before {
+            background: radial-gradient(
+                480px circle at var(--mouse-x, 50%) var(--mouse-y, 0%),
+                rgba(255, 255, 255, 0.11),
+                transparent 55%
+            );
+        }
+        .liquid-glass-card:hover::before {
+            opacity: 1;
+        }
+
+        /* 液态玻璃胶囊按钮与导航栏 */
+        .liquid-glass-pill {
+            background: rgba(255, 255, 255, 0.62);
+            backdrop-filter: blur(24px) saturate(190%);
+            -webkit-backdrop-filter: blur(24px) saturate(190%);
+            border: 1px solid rgba(255, 255, 255, 0.72);
+            box-shadow:
+                0 6px 20px -4px rgba(15, 23, 42, 0.07),
+                inset 0 1px 1px rgba(255, 255, 255, 0.9);
+            transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        html.dark .liquid-glass-pill {
+            background: rgba(26, 33, 52, 0.65);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            box-shadow:
+                0 8px 24px -4px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0.5px rgba(255, 255, 255, 0.2);
+        }
+        .liquid-glass-pill:hover {
+            transform: translateY(-1px);
+        }
+        .liquid-glass-pill:active {
+            transform: scale(0.96);
+        }
+
+        /* 液态玻璃果蔬折射球体容器 */
+        .liquid-orb-showcase {
+            background: radial-gradient(
+                circle at 30% 25%,
+                rgba(255, 255, 255, 0.92) 0%,
+                rgba(255, 240, 245, 0.45) 48%,
+                rgba(255, 45, 85, 0.12) 100%
+            );
+            box-shadow:
+                0 20px 40px -10px rgba(255, 45, 85, 0.18),
+                inset 0 4px 12px rgba(255, 255, 255, 0.95),
+                inset 0 -8px 20px rgba(255, 45, 85, 0.14);
+            border: 1.5px solid rgba(255, 255, 255, 0.88);
+        }
+        html.dark .liquid-orb-showcase {
+            background: radial-gradient(
+                circle at 30% 25%,
+                rgba(255, 255, 255, 0.22) 0%,
+                rgba(30, 41, 59, 0.55) 55%,
+                rgba(255, 45, 85, 0.22) 100%
+            );
+            box-shadow:
+                0 20px 40px -10px rgba(0, 0, 0, 0.6),
+                inset 0 2px 10px rgba(255, 255, 255, 0.28),
+                inset 0 -8px 20px rgba(255, 45, 85, 0.22);
+            border: 1.5px solid rgba(255, 255, 255, 0.22);
+        }
+
+        /* 动态流光背景球动画 */
+        @keyframes auroraFloat1 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(60px, -40px) scale(1.08); }
+            66% { transform: translate(-35px, 30px) scale(0.95); }
+        }
+        @keyframes auroraFloat2 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(-70px, 50px) scale(1.1); }
+        }
+        .animate-aurora-1 { animation: auroraFloat1 18s ease-in-out infinite; }
+        .animate-aurora-2 { animation: auroraFloat2 22s ease-in-out infinite; }
+
+        @keyframes floatGentle {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-7px) rotate(1.5deg); }
+        }
+        .animate-float-gentle { animation: floatGentle 4.5s ease-in-out infinite; }
+
+        @keyframes springPop {
+            0% { transform: scale(0.84); }
+            55% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .animate-spring-pop {
+            animation: springPop 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        @keyframes pulseHeart {
+            0%, 100% { transform: scale(1); }
+            15% { transform: scale(1.24); }
+            30% { transform: scale(1); }
+            45% { transform: scale(1.16); }
+        }
+        .animate-heartbeat { animation: pulseHeart 1.35s infinite; }
+
+        /* 灵动岛 (Dynamic Island) 弹性过渡 */
+        #dynamicIsland {
+            transition: all 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+            box-shadow:
+                0 14px 36px -6px rgba(0, 0, 0, 0.35),
+                inset 0 1px 1px rgba(255, 255, 255, 0.28);
+        }
+
+        /* Apple iOS 27 液态透镜滑块 (Liquid Lens Slider) */
+        input[type=range].apple-liquid-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type=range].apple-liquid-slider::-webkit-slider-runnable-track {
+            height: 10px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #FF9500 0%, #FF2D55 50%, #30B0C7 82%, #34C759 100%);
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+        input[type=range].apple-liquid-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 26px;
+            width: 36px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(8px);
+            border: 2px solid #ffffff;
+            box-shadow:
+                0 4px 14px rgba(255, 45, 85, 0.42),
+                inset 0 2px 4px rgba(255, 255, 255, 1);
+            margin-top: -8px;
+            transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.2s;
+        }
+        input[type=range].apple-liquid-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.14);
+            background: #ffffff;
+        }
+
+        .tabular-nums {
+            font-variant-numeric: tabular-nums;
+        }
+        @supports (padding: env(safe-area-inset-bottom)) {
+            body { padding-bottom: max(6rem, env(safe-area-inset-bottom)); }
+            #toastContainer { bottom: max(1.25rem, env(safe-area-inset-bottom)); }
+        }
+    </style>
+</head>
+<body class="text-slate-900 dark:text-slate-100 min-h-screen selection:bg-apple-rose selection:text-white pb-24">
+
+    <!-- 隐藏的 SVG 光学折射滤镜 (Apple Liquid Glass Optical Filter) -->
+    <svg width="0" height="0" class="fixed pointer-events-none">
+        <defs>
+            <filter id="liquid-refraction" x="-10%" y="-10%" width="120%" height="120%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="2" result="noise" />
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+        </defs>
+    </svg>
+
+    <!-- =========================================================================
+         动态流光网格壁纸引擎 (Apple Ambient Mesh Wallpaper Orbs)
+    ========================================================================= -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div id="ambientOrb1" class="absolute -top-28 -left-24 w-[480px] h-[480px] rounded-full blur-[110px] opacity-40 dark:opacity-25 animate-aurora-1 transition-colors duration-700" style="background: var(--orb-1);"></div>
+        <div id="ambientOrb2" class="absolute top-1/4 -right-28 w-[440px] h-[440px] rounded-full blur-[110px] opacity-35 dark:opacity-20 animate-aurora-2 transition-colors duration-700" style="background: var(--orb-2);"></div>
+        <div id="ambientOrb3" class="absolute -bottom-32 left-1/4 w-[500px] h-[500px] rounded-full blur-[120px] opacity-30 dark:opacity-20 animate-aurora-1 transition-colors duration-700" style="background: var(--orb-3);"></div>
+        <div id="ambientOrb4" class="absolute top-2/3 right-1/4 w-[360px] h-[360px] rounded-full blur-[100px] opacity-25 dark:opacity-15 animate-aurora-2 transition-colors duration-700" style="background: var(--orb-4);"></div>
+    </div>
+
+    <!-- =========================================================================
+         顶部悬浮灵动岛 (Dynamic Island) + Apple Liquid Glass 导航栏
+    ========================================================================= -->
+    <header class="sticky top-3 z-40 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div class="liquid-glass-card rounded-[28px] px-3.5 sm:px-5 py-2.5 flex flex-wrap items-center justify-between gap-3">
+            
+            <!-- 左侧：Apple Health 风格 3D 液态玻璃品牌徽章 -->
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-[16px] bg-gradient-to-br from-[#FF2D55] via-[#FF375F] to-[#FF9500] flex items-center justify-center text-white shadow-lg shadow-rose-500/30 border border-white/60 shrink-0">
+                    <i data-lucide="heart-pulse" class="w-5 h-5 stroke-[2.2]"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-extrabold text-base sm:text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-slate-800 to-rose-600 dark:from-white dark:via-slate-100 dark:to-rose-400">
+                            BloomOS
+                        </h1>
+                        <span class="hidden md:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-500/12 text-apple-rose dark:text-rose-300 border border-rose-500/20">
+                            iOS 27 Liquid Glass
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 font-medium" id="navRealDateText">
+                        预产期锁定 2027.05.01 · 实时护航中
+                    </p>
+                </div>
+            </div>
+
+            <!-- 中央：Apple Dynamic Island (交互式灵动岛中枢) -->
+            <div class="order-3 xl:order-2 w-full xl:w-auto flex justify-center">
+                <div id="dynamicIsland" onclick="toggleDynamicIsland(event)" class="bg-slate-950/92 dark:bg-black/90 text-white rounded-[26px] px-4 py-2 cursor-pointer select-none border border-white/15 max-w-full sm:max-w-xl">
+                    <!-- 灵动岛紧凑态 (Collapsed Pill) -->
+                    <div class="flex items-center justify-between gap-3 sm:gap-5">
+                        <div class="flex items-center gap-2">
+                            <span class="relative flex h-2.5 w-2.5">
+                                <span id="islandSyncPing" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
+                            </span>
+                            <span id="islandCacheStatusText" class="text-[11px] font-mono text-emerald-300 font-semibold">
+                                本机记录 · 0天
+                            </span>
+                        </div>
+
+                        <div class="h-3.5 w-[1px] bg-white/15"></div>
+
+                        <div class="flex items-center gap-2">
+                            <span id="islandWeekPill" class="text-xs font-bold tracking-tight text-white tabular-nums">
+                                孕 11周+4天
+                            </span>
+                            <span id="islandFruitBadge" class="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/15 text-rose-200">
+                                饱满无花果
+                            </span>
+                        </div>
+
+                        <div class="h-3.5 w-[1px] bg-white/15 hidden sm:block"></div>
+
+                        <div class="flex items-center gap-1.5 text-[11px] font-mono text-amber-300">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i>
+                            <span id="islandCountdownText" class="tabular-nums">倒计时 199天</span>
+                            <i id="islandChevron" data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 transition-transform duration-300"></i>
+                        </div>
+                    </div>
+
+                    <!-- 灵动岛展开态 (Expanded Spatial Controls) -->
+                    <div id="islandExpandedPanel" class="hidden pt-3.5 mt-2.5 border-t border-white/15 space-y-3 text-xs" onclick="event.stopPropagation()">
+                        <div class="flex flex-wrap items-center justify-between gap-4">
+                            <div class="space-y-0.5">
+                                <div class="text-[11px] text-slate-400">当前设备本地保存 · 未开启云同步</div>
+                                <div id="islandDetailSyncTime" class="font-mono text-xs text-emerald-300 font-semibold">
+                                    最近自动保存：尚无记录 · 仅保存在当前设备
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="quickAddWaterFromIsland()" class="px-3 py-1.5 rounded-full bg-sky-500/25 hover:bg-sky-500/40 border border-sky-400/30 text-sky-200 font-semibold text-[11px] flex items-center gap-1 transition-all active:scale-95">
+                                    <i data-lucide="droplet" class="w-3.5 h-3.5"></i>
+                                    <span>+1杯水 (250ml)</span>
+                                </button>
+                                <button onclick="recordFetalKick()" class="px-3 py-1.5 rounded-full bg-rose-500/25 hover:bg-rose-500/40 border border-rose-400/30 text-rose-200 font-semibold text-[11px] flex items-center gap-1 transition-all active:scale-95">
+                                    <i data-lucide="heart" class="w-3.5 h-3.5"></i>
+                                    <span>宝宝互动 +1</span>
+                                </button>
+                                <button onclick="openHistoryModal()" class="px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white font-semibold text-[11px] flex items-center gap-1 transition-all">
+                                    <i data-lucide="history" class="w-3.5 h-3.5"></i>
+                                    <span>历史足迹</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：流光主题切换 + 玻璃通透度控制中心 + 预产期/历史记录按钮 -->
+            <div class="order-2 xl:order-3 flex items-center gap-1.5 sm:gap-2">
+                <!-- Apple 控制中心：壁纸与液态玻璃通透度调节按钮 -->
+                <div class="relative">
+                    <button onclick="toggleControlCenter(event)" title="Apple 液态玻璃控制中心 (壁纸与磨砂度)" class="liquid-glass-pill px-3 py-2 rounded-2xl text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                        <i data-lucide="sliders" class="w-3.5 h-3.5 text-apple-rose"></i>
+                        <span class="hidden sm:inline">液态外观</span>
+                    </button>
+
+                    <!-- 悬浮 Apple Control Center Popover -->
+                    <div id="controlCenterPopover" onclick="event.stopPropagation()" class="hidden absolute right-0 mt-2.5 w-80 liquid-glass-card rounded-[26px] p-4 z-50 space-y-4 shadow-2xl">
+                        <div class="flex items-center justify-between border-b border-slate-200/50 dark:border-white/10 pb-2.5">
+                            <span class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-apple-rose"></i>
+                                <span>iOS 27 液态玻璃控制中心</span>
+                            </span>
+                            <span class="text-[10px] font-mono text-slate-400">自动记忆</span>
+                        </div>
+
+                        <!-- 4 套流光环境壁纸切换 -->
+                        <div class="space-y-1.5">
+                            <label class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">环境流光色彩 (Ambient Wallpaper)</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="setAmbientTheme('bloom')" id="themeBtn-bloom" class="p-2 rounded-2xl border text-left transition-all flex items-center gap-2 bg-white/70 dark:bg-slate-900/60 border-rose-400">
+                                    <span class="w-5 h-5 rounded-full bg-gradient-to-tr from-[#FF2D55] to-[#FF9500] shrink-0"></span>
+                                    <div>
+                                        <div class="text-xs font-bold">晨曦玫瑰</div>
+                                        <div class="text-[10px] text-slate-400">Cupertino</div>
+                                    </div>
+                                </button>
+                                <button onclick="setAmbientTheme('tahoe')" id="themeBtn-tahoe" class="p-2 rounded-2xl border text-left transition-all flex items-center gap-2 bg-white/70 dark:bg-slate-900/60 border-transparent">
+                                    <span class="w-5 h-5 rounded-full bg-gradient-to-tr from-[#00C7BE] to-[#5856D6] shrink-0"></span>
+                                    <div>
+                                        <div class="text-xs font-bold">冰川青提</div>
+                                        <div class="text-[10px] text-slate-400">Tahoe Mint</div>
+                                    </div>
+                                </button>
+                                <button onclick="setAmbientTheme('amber')" id="themeBtn-amber" class="p-2 rounded-2xl border text-left transition-all flex items-center gap-2 bg-white/70 dark:bg-slate-900/60 border-transparent">
+                                    <span class="w-5 h-5 rounded-full bg-gradient-to-tr from-[#FF9F0A] to-[#FF375F] shrink-0"></span>
+                                    <div>
+                                        <div class="text-xs font-bold">流光琥珀</div>
+                                        <div class="text-[10px] text-slate-400">Warm Gold</div>
+                                    </div>
+                                </button>
+                                <button onclick="setAmbientTheme('vision')" id="themeBtn-vision" class="p-2 rounded-2xl border text-left transition-all flex items-center gap-2 bg-slate-900 text-white border-transparent">
+                                    <span class="w-5 h-5 rounded-full bg-gradient-to-tr from-[#5856D6] via-[#FF2D55] to-[#32ADE6] shrink-0"></span>
+                                    <div>
+                                        <div class="text-xs font-bold">深空极夜</div>
+                                        <div class="text-[10px] text-slate-400">visionOS Dark</div>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 液态玻璃折射磨砂度滑块 -->
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between text-[11px] font-semibold">
+                                <span class="text-slate-600 dark:text-slate-300">玻璃质感 (清透 ↔ 磨砂)</span>
+                                <span id="glassBlurLabel" class="font-mono text-apple-rose">30px</span>
+                            </div>
+                            <input type="range" min="10" max="48" value="30" id="glassBlurSlider" oninput="updateGlassMaterial(this.value)" class="w-full accent-rose-500 cursor-pointer">
+                        </div>
+
+                        <!-- 微交互音效开关 -->
+                        <div class="pt-2 border-t border-slate-200/50 dark:border-white/10 flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-200">Apple 晶莹水滴音效</span>
+                            <button onclick="toggleSound()" id="soundTogglePill" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500 text-white">
+                                已开启
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 预产期设定按钮 (默认 2027-05-01) -->
+                <button onclick="openEddModal()" class="liquid-glass-pill px-3 py-2 rounded-2xl text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                    <i data-lucide="calendar-heart" class="w-3.5 h-3.5 text-apple-rose"></i>
+                    <span class="hidden md:inline text-slate-500 dark:text-slate-400">预产期:</span>
+                    <span id="navEddText" class="font-mono font-bold text-apple-rose dark:text-rose-400 tabular-nums">2027-05-01</span>
+                </button>
+
+                <!-- 历史足迹与备份中心 -->
+                <button onclick="openHistoryModal()" class="liquid-glass-pill px-3 py-2 rounded-2xl text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                    <i data-lucide="folder-heart" class="w-3.5 h-3.5 text-apple-indigo"></i>
+                    <span class="hidden sm:inline">足迹与备份</span>
+                    <span id="navSavedDaysBadge" class="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-apple-indigo/15 text-apple-indigo dark:text-indigo-300 tabular-nums">0</span>
+                </button>
+
+                <!-- 导出今日简报 -->
+                <button onclick="openSummaryModal()" class="px-3.5 py-2 rounded-2xl text-xs font-bold bg-gradient-to-r from-[#FF2D55] to-[#FF6482] hover:opacity-95 text-white shadow-md shadow-rose-500/25 active:scale-95 transition-all flex items-center gap-1.5">
+                    <i data-lucide="share" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">今日简报</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- =========================================================================
+         主空间容器 (Spatial Bento Grid Layout)
+    ========================================================================= -->
+    <main class="relative z-10 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-5 space-y-6">
+
+        <!-- =====================================================================
+             模块 1：Apple Health 风格置顶四大生命体征摘要卡 (4 Pinned KPI Widgets)
+        ===================================================================== -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- KPI 1: 当前孕周与三阶段进度 -->
+            <div class="liquid-glass-card rounded-[28px] p-5 flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                    <span class="inline-flex items-center gap-1.5 text-xs font-bold text-apple-rose">
+                        <i data-lucide="flame" class="w-4 h-4 fill-current"></i>
+                        <span>当前孕周进度</span>
+                    </span>
+                    <span id="kpiTrimesterPill" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                        第一孕期 · 孕早期
+                    </span>
+                </div>
+                <div class="my-2.5">
+                    <div id="kpiCurrentWeekTitle" class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white tabular-nums">
+                        11周 + 4天
+                    </div>
+                    <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-1 font-mono tabular-nums">
+                        <span id="kpiDayOf280Text">第 81 / 280 天</span>
+                        <span id="kpiProgressPctText" class="font-bold text-apple-rose">28.9%</span>
+                    </div>
+                </div>
+                <div class="w-full h-2 rounded-full bg-slate-200/70 dark:bg-slate-800 overflow-hidden">
+                    <div id="kpiProgressBar" class="h-full rounded-full bg-gradient-to-r from-[#FF9500] via-[#FF2D55] to-[#AF52DE] transition-all duration-500" style="width: 28.9%"></div>
+                </div>
+            </div>
+
+            <!-- KPI 2: 距预产期倒计时 (默认锁定 2027-05-01) -->
+            <div class="liquid-glass-card rounded-[28px] p-5 flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                    <span class="inline-flex items-center gap-1.5 text-xs font-bold text-apple-indigo dark:text-indigo-400">
+                        <i data-lucide="calendar-clock" class="w-4 h-4"></i>
+                        <span>预产期倒计时</span>
+                    </span>
+                    <button onclick="jumpToRealToday()" class="text-[11px] font-bold text-apple-blue hover:underline flex items-center gap-0.5">
+                        <i data-lucide="locate-fixed" class="w-3 h-3"></i>
+                        <span>回到今天</span>
+                    </button>
+                </div>
+                <div class="my-2.5 flex items-baseline gap-2">
+                    <span id="kpiCountdownNumber" class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white font-mono tabular-nums">
+                        199
+                    </span>
+                    <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">天迎接宝宝诞生</span>
+                </div>
+                <div class="flex items-center justify-between text-[11px] pt-2 border-t border-slate-200/50 dark:border-white/10 text-slate-500 dark:text-slate-400 font-mono">
+                    <span>EDD: <strong id="kpiEddLabel" class="text-slate-700 dark:text-slate-200">2027-05-01</strong></span>
+                    <span>LMP: <strong id="kpiLmpLabel">2026-07-25</strong></span>
+                </div>
+            </div>
+
+            <!-- KPI 3: 今日宝宝体型参照物 -->
+            <div class="liquid-glass-card rounded-[28px] p-5 flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                    <span class="inline-flex items-center gap-1.5 text-xs font-bold text-apple-amber">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i>
+                        <span>今日宝宝参照物</span>
+                    </span>
+                    <span class="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-rose-500">
+                        <i data-lucide="heart" class="w-3 h-3 fill-rose-500 animate-heartbeat"></i>
+                        <span id="kpiFhrText">仅供参考</span>
+                    </span>
+                </div>
+                <div class="my-2">
+                    <div id="kpiFruitName" class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                        饱满无花果
+                    </div>
+                    <p id="kpiSelectedDateText" class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
+                        对应日历：2026-10-14 (星期三)
+                    </p>
+                </div>
+                <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/50 dark:border-white/10 text-xs font-mono">
+                    <div>身长: <strong id="kpiLengthVal" class="text-slate-900 dark:text-white">4.6 cm</strong></div>
+                    <div>体重: <strong id="kpiWeightVal" class="text-slate-900 dark:text-white">11 g</strong></div>
+                </div>
+            </div>
+
+            <!-- KPI 4: Apple Fitness 三环风格今日护航闭环度 -->
+            <div class="liquid-glass-card rounded-[28px] p-5 flex items-center justify-between gap-3">
+                <div class="space-y-1.5">
+                    <span class="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        <i data-lucide="activity" class="w-4 h-4"></i>
+                        <span>今日护航三环</span>
+                    </span>
+                    <div id="kpiRingOverallPct" class="text-2xl sm:text-3xl font-extrabold font-mono tracking-tight text-slate-900 dark:text-white tabular-nums">
+                        75%
+                    </div>
+                    <div class="space-y-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-[#FF2D55]"></span>
+                            <span id="ringLabelTodo">行动清单 0/5</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-[#32ADE6]"></span>
+                            <span id="ringLabelWater">饮水 1250/2000ml</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-[#34C759]"></span>
+                            <span id="ringLabelVital">体感与互动已记</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Apple Activity 3 Concentric SVG Rings -->
+                <div class="relative w-20 h-20 flex items-center justify-center shrink-0">
+                    <svg class="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
+                        <!-- 外环背景 & 进度 (待办行动 - Rose) -->
+                        <circle cx="40" cy="40" r="34" stroke="rgba(255,45,85,0.16)" stroke-width="6.5" fill="none"/>
+                        <circle id="appleRingTodo" cx="40" cy="40" r="34" stroke="#FF2D55" stroke-width="6.5" stroke-dasharray="213.6" stroke-dashoffset="50" stroke-linecap="round" fill="none" class="transition-all duration-700"/>
+                        <!-- 中环背景 & 进度 (饮水 - Cyan) -->
+                        <circle cx="40" cy="40" r="25.5" stroke="rgba(50,173,230,0.16)" stroke-width="6.5" fill="none"/>
+                        <circle id="appleRingWater" cx="40" cy="40" r="25.5" stroke="#32ADE6" stroke-width="6.5" stroke-dasharray="160.2" stroke-dashoffset="40" stroke-linecap="round" fill="none" class="transition-all duration-700"/>
+                        <!-- 内环背景 & 进度 (互动与心情 - Green) -->
+                        <circle cx="40" cy="40" r="17" stroke="rgba(52,199,89,0.16)" stroke-width="6.5" fill="none"/>
+                        <circle id="appleRingVital" cx="40" cy="40" r="17" stroke="#34C759" stroke-width="6.5" stroke-dasharray="106.8" stroke-dashoffset="20" stroke-linecap="round" fill="none" class="transition-all duration-700"/>
+                    </svg>
+                </div>
+            </div>
+        </section>
+
+        <!-- =====================================================================
+             模块 2：4W ~ 40W 孕周液态玻璃时光机 (Liquid Glass Time Machine Dock)
+        ===================================================================== -->
+        <section class="liquid-glass-card rounded-[32px] p-5 sm:p-6 space-y-4">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <!-- 阶段快速跳转胶囊 -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 mr-1">
+                        <i data-lucide="compass" class="w-4 h-4 text-apple-rose"></i>
+                        <span>280天孕周时光机：</span>
+                    </span>
+                    <button onclick="jumpToWeek(8)" class="liquid-glass-pill px-3 py-1 rounded-full text-xs font-semibold hover:text-apple-rose">8W 胎心搏动</button>
+                    <button onclick="jumpToWeek(12)" class="liquid-glass-pill px-3 py-1 rounded-full text-xs font-semibold hover:text-apple-rose">12W NT建档关</button>
+                    <button onclick="jumpToWeek(20)" class="liquid-glass-pill px-3 py-1 rounded-full text-xs font-semibold hover:text-apple-rose">20W 赛程过半</button>
+                    <button onclick="jumpToWeek(24)" class="liquid-glass-pill px-3 py-1 rounded-full text-xs font-semibold hover:text-apple-rose">24W 糖耐大排畸</button>
+                    <button onclick="jumpToWeek(28)" class="liquid-glass-pill px-3 py-1 rounded-full text-xs font-semibold hover:text-apple-rose">28W 孕晚期启航</button>
+                    <button onclick="jumpToWeek(37)" class="liquid-glass-pill px-3 py-1 rounded-full text-xs font-semibold hover:text-apple-rose">37W 足月待产</button>
+                </div>
+
+                <!-- 微调步进器与回到今日 -->
+                <div class="flex items-center gap-1.5 self-start lg:self-auto">
+                    <button onclick="stepDay(-7)" class="liquid-glass-pill px-2.5 py-1 rounded-xl text-xs font-bold">-1周</button>
+                    <button onclick="stepDay(-1)" class="liquid-glass-pill px-2.5 py-1 rounded-xl text-xs font-bold">-1天</button>
+                    <button onclick="jumpToRealToday()" class="px-3 py-1 rounded-xl text-xs font-bold bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm hover:opacity-90 transition-all">
+                        今天 (真实孕周)
+                    </button>
+                    <button onclick="stepDay(1)" class="liquid-glass-pill px-2.5 py-1 rounded-xl text-xs font-bold">+1天</button>
+                    <button onclick="stepDay(7)" class="liquid-glass-pill px-2.5 py-1 rounded-xl text-xs font-bold">+1周</button>
+                </div>
+            </div>
+
+            <!-- 液态透镜滑块 (4W ~ 40W) -->
+            <div class="space-y-1.5 pt-1">
+                <input id="weekSlider" type="range" min="4" max="40" value="11" oninput="handleWeekSliderChange(this.value)" class="w-full apple-liquid-slider">
+                <div class="flex justify-between text-[11px] font-mono text-slate-400 dark:text-slate-500 px-1">
+                    <span>4W 着床</span>
+                    <span>11W~13W 孕早中过渡</span>
+                    <span>20W 半程</span>
+                    <span>24W 糖耐</span>
+                    <span>28W 孕晚期</span>
+                    <span>37W 足月</span>
+                    <span>40W 预产期(27.05.01)</span>
+                </div>
+            </div>
+
+            <!-- 周内 7 天 (+0d ~ +6d) 玻璃胶囊选择器（带已缓存绿点提示与真实日历日期） -->
+            <div class="pt-2 border-t border-slate-200/50 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    点击切换本周内每一天（带 <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span> 绿点表示该日已有本地缓存记录）：
+                </span>
+                <div id="daySelectorBar" class="grid grid-cols-7 gap-1.5 w-full sm:w-auto">
+                    <!-- JS 动态生成 +0天 ~ +6天 按钮 -->
+                </div>
+            </div>
+        </section>
+
+        <!-- =====================================================================
+             模块 3 & 4：双栏核心空间看板
+             左栏：「今天发生了什么」(What Happened Today)
+             右栏：「今天要做什么」(What To Do Today)
+        ===================================================================== -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- 左栏 (6 列)：「今天发生了什么」 (3D 果蔬液态球 + 宝宝/妈妈/准爸爸三维实况) -->
+            <div class="lg:col-span-6 liquid-glass-card rounded-[32px] p-5 sm:p-6 flex flex-col justify-between space-y-5">
+                <!-- 顶栏标题 -->
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-2xl bg-rose-500/15 text-apple-rose flex items-center justify-center">
+                            <i data-lucide="baby" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">今天发生了什么 · 生命发育实况</h2>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400" id="todayStageKeyword">器官雏形毕现 · 孕早中过渡关键期</p>
+                        </div>
+                    </div>
+                    <span id="babyDailyMicroTag" class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-rose-500/12 text-apple-rose dark:text-rose-300 border border-rose-500/20">
+                        Day +4 · 感官与反射精进
+                    </span>
+                </div>
+
+                <!-- 3D 液态玻璃果蔬折射球 + 生理遥测胶囊 -->
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center p-4 rounded-[26px] bg-white/45 dark:bg-slate-900/45 border border-white/60 dark:border-white/10">
+                    <div class="sm:col-span-5 flex flex-col items-center justify-center">
+                        <div id="fruitSvgContainer" class="w-32 h-32 rounded-full liquid-orb-showcase flex items-center justify-center animate-float-gentle">
+                            <!-- JS 渲染高精细度 SVG 果蔬插画 -->
+                        </div>
+                        <div class="mt-2.5 text-center">
+                            <span class="text-[11px] text-slate-400">体型参照物</span>
+                            <div id="fruitNameText" class="text-base font-extrabold text-apple-rose dark:text-rose-400">饱满无花果</div>
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-7 space-y-2.5">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="p-3 rounded-2xl bg-white/70 dark:bg-slate-800/70 border border-white/80 dark:border-white/10">
+                                <div class="text-[10px] font-semibold text-slate-400 uppercase">参考身长 (CRL/CHL)</div>
+                                <div id="fetalLengthText" class="text-lg font-extrabold font-mono text-slate-900 dark:text-white tabular-nums mt-0.5">4.6 cm</div>
+                            </div>
+                            <div class="p-3 rounded-2xl bg-white/70 dark:bg-slate-800/70 border border-white/80 dark:border-white/10">
+                                <div class="text-[10px] font-semibold text-slate-400 uppercase">参考体重</div>
+                                <div id="fetalWeightText" class="text-lg font-extrabold font-mono text-slate-900 dark:text-white tabular-nums mt-0.5">11 g</div>
+                            </div>
+                            <div class="p-3 rounded-2xl bg-white/70 dark:bg-slate-800/70 border border-white/80 dark:border-white/10">
+                                <div class="text-[10px] font-semibold text-slate-400 uppercase">胎心率参考</div>
+                                <div id="fetalHeartRateText" class="text-sm font-bold font-mono text-apple-rose tabular-nums mt-0.5">155~168 bpm</div>
+                            </div>
+                            <div class="p-3 rounded-2xl bg-white/70 dark:bg-slate-800/70 border border-white/80 dark:border-white/10">
+                                <div class="text-[10px] font-semibold text-slate-400 uppercase">子宫底位置</div>
+                                <div id="fundalHeightText" class="text-sm font-bold text-slate-800 dark:text-slate-200 mt-0.5">耻骨联合上1指</div>
+                            </div>
+                        </div>
+                        <div id="babyOrgansTagList" class="flex flex-wrap gap-1.5 pt-1">
+                            <!-- JS 动态渲染发育器官标签 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 三张 Apple Health 详情洞察子卡片 (宝宝 / 妈妈 / 准爸爸) -->
+                <div class="space-y-3">
+                    <!-- 子卡 1：👶 宝宝今日里程碑 -->
+                    <div class="p-4 rounded-[22px] bg-white/60 dark:bg-slate-900/55 border border-white/75 dark:border-white/10 space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-extrabold text-apple-rose flex items-center gap-1.5">
+                                <span>👶 宝宝今日发生了什么</span>
+                            </span>
+                            <span class="text-[10px] font-mono text-slate-400">Fetal Development</span>
+                        </div>
+                        <h4 id="babyWhatHappenedTitle" class="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                            全身核心器官已就位，小手小脚会在羊水中做伸展与踢腿运动
+                        </h4>
+                        <p id="babyWhatHappenedDesc" class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed"></p>
+                    </div>
+
+                    <!-- 子卡 2：🤰 妈妈今日生理与体感指南 -->
+                    <div class="p-4 rounded-[22px] bg-white/60 dark:bg-slate-900/55 border border-white/75 dark:border-white/10 space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                                <span>🤰 妈妈今日生理变化与应对</span>
+                            </span>
+                            <span class="text-[10px] font-mono text-slate-400">Maternal Care</span>
+                        </div>
+                        <h4 id="momWhatHappenedTitle" class="text-sm font-bold text-slate-900 dark:text-white"></h4>
+                        <p id="momWhatHappenedDesc" class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed"></p>
+                    </div>
+
+                    <!-- 子卡 3：🤝 准爸爸今日 1 件护航行动 -->
+                    <div class="p-4 rounded-[22px] bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-purple-500/10 border border-amber-400/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="space-y-1">
+                            <div class="text-xs font-extrabold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+                                <span>🤝 准爸爸今日 1 件护航行动 (Partner Action)</span>
+                            </div>
+                            <p id="partnerTipText" class="text-xs font-medium text-slate-700 dark:text-slate-200 leading-relaxed"></p>
+                        </div>
+                        <button onclick="togglePartnerDoneToday()" id="partnerDoneBtn" class="px-3.5 py-2 rounded-2xl text-xs font-bold shrink-0 transition-all liquid-glass-pill text-amber-700 dark:text-amber-300">
+                            👏 标记准爸爸已执行
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右栏 (6 列)：「今天要做什么」 (Apple Segmented Control + 三态微习惯打卡清单) -->
+            <div class="lg:col-span-6 liquid-glass-card rounded-[32px] p-5 sm:p-6 flex flex-col justify-between space-y-4">
+                <div class="space-y-4">
+                    <!-- 头部：标题 + 一键完成补剂 -->
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-9 h-9 rounded-2xl bg-indigo-500/15 text-apple-indigo dark:text-indigo-400 flex items-center justify-center">
+                                <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h2 class="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">今天要做什么 · 每日护航清单</h2>
+                                    <span id="todoCountBadge" class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-indigo-500/15 text-apple-indigo dark:text-indigo-300 tabular-nums">
+                                        0/5 已完成
+                                    </span>
+                                </div>
+                                <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                                    支持三态切换：<span class="text-emerald-600 dark:text-emerald-400 font-bold">✅ 完整达成</span> → <span class="text-amber-600 dark:text-amber-400 font-bold">⚡ 疲惫日微习惯保底</span> → <span class="text-slate-400">⬜ 待执行</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <button onclick="quickCompleteSupplements()" class="liquid-glass-pill px-3 py-1.5 rounded-2xl text-xs font-bold text-apple-rose flex items-center gap-1">
+                            <i data-lucide="pill" class="w-3.5 h-3.5"></i>
+                            <span>一键打卡营养补剂</span>
+                        </button>
+                    </div>
+
+                    <!-- Apple iOS 风格分段控制器 (Segmented Filter Tabs) -->
+                    <div id="todoCategoryBar" class="flex items-center gap-1 p-1 rounded-2xl bg-slate-200/60 dark:bg-slate-900/70 overflow-x-auto">
+                        <!-- JS 动态渲染：全部 / 营养补剂 / 护理运动 / 产检筹备 / 伴侣协同 -->
+                    </div>
+
+                    <!-- 待办事项滚动列表 -->
+                    <div id="todoListContainer" class="space-y-2.5 max-h-[385px] overflow-y-auto pr-1">
+                        <!-- JS 动态渲染 -->
+                    </div>
+                </div>
+
+                <!-- 底部：内联快速新增自定义待办栏 -->
+                <form onsubmit="handleInlineAddTask(event)" class="pt-3 border-t border-slate-200/50 dark:border-white/10 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <select id="inlineTaskCat" class="px-3 py-2.5 rounded-2xl text-xs font-bold bg-white/80 dark:bg-slate-900/80 border border-white/80 dark:border-white/15 focus:outline-none">
+                        <option value="营养补剂">💊 营养补剂</option>
+                        <option value="护理运动">🧘‍♀️ 护理运动</option>
+                        <option value="产检筹备">🏥 产检筹备</option>
+                        <option value="伴侣协同">🤝 伴侣协同</option>
+                    </select>
+                    <input type="text" id="inlineTaskTitle" required maxlength="45" placeholder="添加自定义每日行动（如：涂抹妊娠油、预约建档）..." class="flex-1 px-3.5 py-2.5 rounded-2xl text-xs bg-white/80 dark:bg-slate-900/80 border border-white/80 dark:border-white/15 focus:outline-none focus:ring-2 focus:ring-apple-rose">
+                    <button type="submit" class="px-4 py-2.5 rounded-2xl text-xs font-bold bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 transition-all shrink-0">
+                        + 添加并缓存
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- =====================================================================
+             模块 5：孕期三大高频交互小组件 (Apple Daily Wellness Studio)
+             1. 💧 8杯水液态饮水舱 (2000ml)
+             2. 💓 胎动 / 孕早期宝宝互动记录仪
+             3. 😊 每日心情、体感与随笔日记
+        ===================================================================== -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- 小组件 1 (4 列)：💧 每日 8 杯水液态饮水舱 -->
+            <div class="lg:col-span-4 liquid-glass-card rounded-[32px] p-5 sm:p-6 flex flex-col justify-between space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-2xl bg-sky-500/15 text-apple-cyan flex items-center justify-center">
+                            <i data-lucide="droplets" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">羊水焕新液态饮水舱</h3>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400">目标 8 杯 (2000ml) · 促进羊水澄澈代谢</p>
+                        </div>
+                    </div>
+                    <span id="waterVolumeText" class="text-sm font-extrabold font-mono text-apple-cyan tabular-nums">1250 ml</span>
+                </div>
+
+                <!-- 8 个液态玻璃水杯交互网格 -->
+                <div id="waterCupsGrid" class="grid grid-cols-4 gap-2.5">
+                    <!-- JS 渲染 8 个液态水杯 -->
+                </div>
+
+                <!-- 底部快捷加减按钮 -->
+                <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/50 dark:border-white/10">
+                    <button onclick="adjustWaterCups(-1)" class="liquid-glass-pill flex-1 py-2 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300">
+                        - 减少 1 杯
+                    </button>
+                    <button onclick="adjustWaterCups(1)" class="flex-1 py-2 rounded-2xl text-xs font-bold bg-gradient-to-r from-[#32ADE6] to-[#007AFF] text-white shadow-md shadow-sky-500/20 active:scale-95 transition-all">
+                        + 喝完 1 杯 (250ml)
+                    </button>
+                </div>
+            </div>
+
+            <!-- 小组件 2 (4 列)：💓 胎动 / 孕早期宝宝互动记录仪 -->
+            <div class="lg:col-span-4 liquid-glass-card rounded-[32px] p-5 sm:p-6 flex flex-col justify-between space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-2xl bg-rose-500/15 text-apple-rose flex items-center justify-center">
+                            <i data-lucide="footprints" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white" id="kickWidgetTitle">胎动与宝宝互动记录仪</h3>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400" id="kickWidgetSubtitle">孕早中期记录胎教互动，18周+记录规律胎动</p>
+                        </div>
+                    </div>
+                    <span id="kickStatusBadge" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                        已连接
+                    </span>
+                </div>
+
+                <!-- 核心交互波纹舱 -->
+                <div class="p-4 rounded-[24px] bg-white/55 dark:bg-slate-900/55 border border-white/75 dark:border-white/10 flex items-center justify-between gap-4">
+                    <div>
+                        <span class="text-[11px] text-slate-500 dark:text-slate-400">今日累计记录频次</span>
+                        <div class="flex items-baseline gap-1.5 mt-0.5">
+                            <span id="kickCountText" class="text-3xl font-extrabold font-mono text-apple-rose tabular-nums">0</span>
+                            <span class="text-xs font-semibold text-slate-500">次胎动 / 胎教呼应</span>
+                        </div>
+                        <p id="lastKickTimeText" class="text-[11px] text-slate-400 mt-1 font-mono">点击右侧按钮立即打下时间戳</p>
+                    </div>
+
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="recordFetalKick()" class="px-4 py-3.5 rounded-[22px] bg-gradient-to-br from-[#FF2D55] to-[#FF6482] text-white font-bold text-xs shadow-lg shadow-rose-500/30 active:scale-95 transition-all flex flex-col items-center gap-1">
+                            <i data-lucide="heart-handshake" class="w-5 h-5"></i>
+                            <span>感知/互动 +1</span>
+                        </button>
+                        <button onclick="undoFetalKick()" title="撤销上一次记录" class="liquid-glass-pill p-3 rounded-2xl text-slate-500 hover:text-rose-500">
+                            <i data-lucide="undo-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 时间戳胶囊流 -->
+                <div id="kickHistoryPills" class="flex items-center gap-1.5 overflow-x-auto py-1 text-[11px] min-h-[28px]">
+                    <!-- JS 动态渲染时间戳 -->
+                </div>
+            </div>
+
+            <!-- 小组件 3 (4 列)：😊 每日心情、体感标签与随笔日记 -->
+            <div class="lg:col-span-4 liquid-glass-card rounded-[32px] p-5 sm:p-6 flex flex-col justify-between space-y-3.5">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-2xl bg-purple-500/15 text-apple-purple flex items-center justify-center">
+                            <i data-lucide="smile-plus" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">每日心情、体感与手记</h3>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400">所选状态与随笔实时保存在当前孕周日</p>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">● 毫秒级直存</span>
+                </div>
+
+                <!-- 5种心情胶囊 -->
+                <div id="moodSelectorGrid" class="grid grid-cols-5 gap-1.5">
+                    <!-- JS 渲染 -->
+                </div>
+
+                <!-- 生理体感标签多选 -->
+                <div id="symptomPillsGrid" class="flex flex-wrap gap-1.5">
+                    <!-- JS 渲染 -->
+                </div>
+
+                <!-- 每日孕期随笔自动保存输入框 -->
+                <div>
+                    <textarea id="dailyMemoInput" rows="2" oninput="handleDailyMemoInput(this.value)" placeholder="写下今天给宝宝的话、饮食感受或产检问题备忘（输入即自动缓存）..." class="w-full px-3.5 py-2 rounded-2xl text-xs bg-white/70 dark:bg-slate-900/70 border border-white/80 dark:border-white/15 focus:outline-none focus:ring-2 focus:ring-apple-rose resize-none"></textarea>
+                </div>
+            </div>
+        </section>
+
+        <!-- =====================================================================
+             模块 6：全周期 10 大产检通关路线图 (自动排期基于 2027.05.01) & 健康增重走廊图表
+        ===================================================================== -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- 左侧 6 列：10 大核心产检通关路线图 (含自动推算日历时间窗 & 产检结果备忘录) -->
+            <div class="lg:col-span-6 liquid-glass-card rounded-[32px] p-5 sm:p-6 flex flex-col justify-between space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <h3 class="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="shield-check" class="w-5 h-5 text-apple-rose"></i>
+                            <span>10 大核心产检通关路线图 (自动排期)</span>
+                        </h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">
+                            已根据您的预产期 <span id="checkupHeaderEdd" class="font-mono font-bold text-apple-rose">2027-05-01</span> 自动推算各项产检最佳日历窗口
+                        </p>
+                    </div>
+                    <span id="checkupProgressBadge" class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                        已通关 1 / 10 关
+                    </span>
+                </div>
+
+                <!-- 产检卡片列表 (支持一键通关 + 内联填写 NT/唐筛/糖耐数值备注自动缓存) -->
+                <div id="checkupTimelineContainer" class="space-y-3 max-h-[380px] overflow-y-auto pr-1.5">
+                    <!-- JS 动态渲染 -->
+                </div>
+            </div>
+
+            <!-- 右侧 6 列：Apple Health 风格孕期增重走廊曲线图 -->
+            <div class="lg:col-span-6 liquid-glass-card rounded-[32px] p-5 sm:p-6 flex flex-col justify-between space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                        <h3 class="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="trending-up" class="w-5 h-5 text-emerald-500"></i>
+                            <span>孕期健康增重走廊曲线 (BMI 安全带)</span>
+                        </h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">
+                            绿色走廊为单胎标准推荐增重区间（全孕期 +11.5 ~ 16.0 kg）
+                        </p>
+                    </div>
+
+                    <!-- 当前孕周体重快捷录入舱 -->
+                    <div class="flex items-center gap-1.5 bg-white/70 dark:bg-slate-900/70 px-3 py-1.5 rounded-2xl border border-white/80 dark:border-white/15">
+                        <span class="text-[11px] font-semibold text-slate-500" id="weightInputWeekLabel">11W体重:</span>
+                        <input id="currentWeightInput" type="number" step="0.1" min="35" max="150" class="w-16 text-xs font-mono font-extrabold bg-transparent text-center focus:outline-none text-slate-900 dark:text-white" value="55.0">
+                        <span class="text-[11px] text-slate-400">kg</span>
+                        <button onclick="saveCurrentWeekWeight()" class="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-apple-rose text-white hover:opacity-90 transition-all">
+                            保存
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SVG 增重曲线容器 -->
+                <div class="relative w-full h-64 select-none">
+                    <div id="weightSvgContainer" class="w-full h-full"></div>
+                </div>
+
+                <!-- 增重诊断底栏 -->
+                <div class="pt-3 border-t border-slate-200/50 dark:border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <span id="weightDiagnosticText" class="text-slate-700 dark:text-slate-200 font-medium"></span>
+                    <span class="text-[11px] text-slate-400 font-mono">孕前基准体重: <strong id="preWeightLabel">待填写</strong> kg</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- =========================================================================
+         Modal 1：预产期 (默认 2027-05-01) 与末次月经 (2026-07-25) 设定弹窗
+    ========================================================================= -->
+    <div id="eddModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/55 backdrop-blur-md">
+        <div class="liquid-glass-card w-full max-w-md rounded-[32px] overflow-hidden animate-spring-pop">
+            <div class="px-6 py-4 border-b border-slate-200/60 dark:border-white/10 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="calendar-heart" class="w-5 h-5 text-apple-rose"></i>
+                    <h3 class="font-extrabold text-base text-slate-900 dark:text-white">预产期与孕前基准设定</h3>
+                </div>
+                <button onclick="closeEddModal()" class="p-1.5 rounded-full hover:bg-slate-200/50 dark:hover:bg-white/10">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <form onsubmit="handleSaveEdd(event)" class="p-6 space-y-4">
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="text-xs font-bold text-slate-700 dark:text-slate-300">预产期 (Estimated Due Date)</label>
+                        <button type="button" onclick="resetToDefault20270501()" class="text-[11px] font-bold text-apple-rose hover:underline">
+                            恢复默认 2027-05-01
+                        </button>
+                    </div>
+                    <input type="date" id="eddDateInput" required class="w-full px-3.5 py-2.5 rounded-2xl text-sm font-mono bg-white/85 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-apple-rose">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">末次月经首日 (LMP · 自动推算 +280天)</label>
+                    <input type="date" id="lmpDateInput" onchange="calcEddFromLmp(this.value)" class="w-full px-3.5 py-2 rounded-2xl text-xs font-mono bg-white/65 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">准妈妈昵称</label>
+                        <input type="text" id="momNameInput" value="准妈妈" maxlength="16" class="w-full px-3.5 py-2 rounded-2xl text-sm bg-white/85 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">孕前基准体重 (kg)</label>
+                        <input type="number" step="0.1" id="prePregnancyWeightInput" placeholder="请填写实际值" min="35" max="130" class="w-full px-3.5 py-2 rounded-2xl text-sm font-mono bg-white/85 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-200/60 dark:border-white/10 flex items-center justify-end gap-2">
+                    <button type="button" onclick="closeEddModal()" class="px-4 py-2 rounded-2xl text-xs font-bold text-slate-500">取消</button>
+                    <button type="submit" class="px-5 py-2.5 rounded-2xl text-xs font-bold bg-gradient-to-r from-[#FF2D55] to-[#FF6482] text-white shadow-md shadow-rose-500/25">
+                        保存并同步全看板
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- =========================================================================
+         Modal 2：历史打卡足迹时间轴与 JSON 备份恢复中心 (History & Backup Sheet)
+    ========================================================================= -->
+    <div id="historyModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/55 backdrop-blur-md">
+        <div class="liquid-glass-card w-full max-w-2xl rounded-[32px] overflow-hidden animate-spring-pop">
+            <div class="px-6 py-4 border-b border-slate-200/60 dark:border-white/10 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="history" class="w-5 h-5 text-apple-indigo"></i>
+                    <h3 class="font-extrabold text-base text-slate-900 dark:text-white">本地持久缓存历史足迹 & 数据备份中心</h3>
+                </div>
+                <button onclick="closeHistoryModal()" class="p-1.5 rounded-full hover:bg-slate-200/50 dark:hover:bg-white/10">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-4">
+                <div class="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <span class="text-emerald-800 dark:text-emerald-300 font-semibold">
+                        ✅ 您在看板上的每一次点击均已通过 LocalStorage 实时缓存在当前浏览器，下次打开自动恢复。
+                    </span>
+                    <div class="flex items-center gap-2">
+                        <button onclick="exportBackupJson()" class="px-3 py-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold">
+                            导出 JSON 备份
+                        </button>
+                        <button onclick="document.getElementById('importBackupInput').click()" class="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-bold">
+                            导入恢复
+                        </button>
+                        <input type="file" id="importBackupInput" accept=".json" class="hidden" onchange="handleImportBackup(event)">
+                    </div>
+                </div>
+
+                <!-- 历史已记录孕周日列表 -->
+                <div class="space-y-2 max-h-80 overflow-y-auto pr-1" id="historyTimelineList">
+                    <!-- JS 动态生成所有有打卡记录的孕周日卡片，点击可直接穿越至该日 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================================
+         Modal 3：今日孕期护航简报导出弹窗 (Share Sheet)
+    ========================================================================= -->
+    <div id="summaryModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/55 backdrop-blur-md">
+        <div class="liquid-glass-card w-full max-w-lg rounded-[32px] overflow-hidden animate-spring-pop">
+            <div class="px-6 py-4 border-b border-slate-200/60 dark:border-white/10 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="sparkles" class="w-5 h-5 text-apple-rose"></i>
+                    <h3 class="font-extrabold text-base text-slate-900 dark:text-white">今日孕期护航简报 · 一键分享给准爸爸/家人</h3>
+                </div>
+                <button onclick="closeSummaryModal()" class="p-1.5 rounded-full hover:bg-slate-200/50 dark:hover:bg-white/10">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <pre id="summaryReportContent" class="p-4 rounded-2xl bg-white/75 dark:bg-slate-900/80 border border-white/80 dark:border-white/10 text-xs font-sans whitespace-pre-wrap leading-relaxed text-slate-800 dark:text-slate-200 max-h-80 overflow-y-auto"></pre>
+                <div class="flex items-center justify-end gap-2">
+                    <button onclick="closeSummaryModal()" class="px-4 py-2 rounded-2xl text-xs font-bold text-slate-500">关闭</button>
+                    <button onclick="copySummaryReport()" class="px-5 py-2.5 rounded-2xl text-xs font-bold bg-gradient-to-r from-[#FF2D55] to-[#FF6482] text-white shadow-md shadow-rose-500/25 flex items-center gap-1.5">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                        <span>复制今日简报文本</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 全局轻量液态玻璃 Toast 容器 -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script>
+        // No critical interaction is allowed to depend on an icon library.
+        // If Lucide is unavailable, content and data entry continue without icons.
+        if (!window.lucide) window.lucide = { createIcons() {} };
+        /**
+         * ============================================================================
+         * 1. 核心常量与全周期孕周百科知识库 (含 11W~13W 孕早中过渡关键期精细化扩展)
+         *    默认预产期严格锁定：2027-05-01 (对应末次月经 LMP: 2026-07-25)
+         * ============================================================================
+         */
+        const STORAGE_KEY = 'BLOOM_OS_LIQUID_GLASS_20270501_V3';
+        const DEFAULT_EDD = '2027-05-01';
+        const DEFAULT_LMP = '2026-07-25';
+
+        // 4 套 Apple 级流光环境主题配置
+        const AMBIENT_THEMES = {
+            bloom: {
+                dark: false,
+                bg: '#F6F5F8',
+                orbs: ['#FF2D55', '#FF9500', '#AF52DE', '#32ADE6']
+            },
+            tahoe: {
+                dark: false,
+                bg: '#F2F7FA',
+                orbs: ['#00C7BE', '#32ADE6', '#5856D6', '#34C759']
+            },
+            amber: {
+                dark: false,
+                bg: '#FAF6F0',
+                orbs: ['#FF9F0A', '#FF375F', '#FF9500', '#AF52DE']
+            },
+            vision: {
+                dark: true,
+                bg: '#060811',
+                orbs: ['#FF2D55', '#5856D6', '#00C7BE', '#32ADE6']
+            }
+        };
+
+        // 4W ~ 40W 孕周百科知识库（特别强化 11W, 12W, 13W 及全周期里程碑）
+        const WEEKLY_ENCYCLOPEDIA = {
+            4: {
+                fruit: '晶莹罂粟籽', fruitType: 'seed', lengthCm: 0.2, weightG: 0.5, fhr: '孕育起搏中', fundal: '耻骨联合下',
+                keyword: '受精卵着床 · 羊膜囊初建',
+                babyTitle: '生命种子成功着陆子宫内膜，神经管底盘开始孕育',
+                babyDesc: '受精卵已完成从输卵管到子宫腔的奇妙旅行，正在植入温暖肥沃的子宫内膜。胚泡内层将发育为宝宝本身，外层正在构建胎盘与羊膜囊。',
+                organs: ['胚泡着床', '原始胎盘绒毛', '羊膜腔雏形'],
+                momTitle: 'HCG 绒毛膜促性腺激素翻倍分泌，基础体温持续偏高',
+                momDesc: '部分敏感的妈妈会感到轻微着床酸胀或乳房柔嫩感。此时最关键的是每日补充 400~800μg 叶酸，远离烟酒与生冷食物。',
+                partnerTip: '主动包揽提重物、弯腰拖地等家务，陪妈妈开启规律作息。'
+            },
+            8: {
+                fruit: '覆盆子红莓', fruitType: 'berry', lengthCm: 1.6, weightG: 1.5, fhr: '155~170 bpm', fundal: '耻骨联合内',
+                keyword: '胎心强劲搏动 · 手指脚趾分化',
+                babyTitle: '小手小脚长出精致指蹼，四腔心脏每分钟有力搏动约 160 次',
+                babyDesc: '宝宝的小尾巴正在消退，眼睑、鼻尖与上唇轮廓清晰可见，已经在温暖的羊水里轻微扭动身体了！',
+                organs: ['四腔心脏搏动', '手指脚趾芽', '视网膜色素层'],
+                momTitle: '早孕恶心感与嗅觉敏感处于高峰，嗜睡乏力明显',
+                momDesc: '激素剧增使胃排空减慢。建议采取“少食多餐”，床头备几片苏打饼干或柠檬片，晨起先吃两口干食再缓慢下床。',
+                partnerTip: '接手厨房油烟较大的烹饪工作，随时在妈妈包里备好苏打饼干与话梅。'
+            },
+            11: {
+                fruit: '饱满无花果', fruitType: 'fig', lengthCm: 4.1, weightG: 8, fhr: '155~168 bpm', fundal: '耻骨联合上1指',
+                keyword: '器官雏形毕现 · 孕早中过渡关键周',
+                babyTitle: '头部约占身长一半，手指与脚趾完全分开，长出微小指甲床',
+                babyDesc: '宝宝现在已经褪去“胚胎”称呼，正式升级为“胎儿”！小耳朵逐渐移向头两侧正常位置，横膈膜开始发育，偶尔会在肚子里轻轻打嗝与伸展四肢。',
+                organs: ['横膈膜发育', '毛囊与指甲床', '外生殖器分化'],
+                momTitle: '孕吐高峰即将迎来拐点，新陈代谢与血容量稳步上升',
+                momDesc: '随着胎盘功能日趋完善，折磨人的晨吐和极度疲倦会在未来 1~2 周内逐渐减轻。本周最重要事项是确认下周（11~13W+6）的 NT 超声与正式建档预约！',
+                partnerTip: '帮妈妈整理好身份证、医保卡、结婚证及前期化验单，确认医院 NT 彩超与建档流程。'
+            },
+            12: {
+                fruit: '清甜青柠 (Lime)', fruitType: 'citrus', lengthCm: 5.4, weightG: 14, fhr: '150~165 bpm', fundal: '耻骨联合上2~3指',
+                keyword: 'NT 超声闯关 · 吞咽与握拳反射就绪',
+                babyTitle: '拥有了吞咽与握拳神经反射，肾脏开始产生微量尿液排入羊水',
+                babyDesc: '恭喜即将圆满跨越孕早期！宝宝的所有核心器官均已就位，甚至会在子宫里做吸吮拇指与张嘴吞咽羊水的练习。本周是 NT 颈项透明层超声筛查的黄金周。',
+                organs: ['脑垂体激素分泌', '吞咽与握拳反射', '声带闭合结构'],
+                momTitle: '早孕反应明显消退，食欲与精力开始温柔回归',
+                momDesc: '胎盘已全面接管激素分泌，小腹在耻骨上方微微隆起。建档抽血当天早晨请保持空腹，包里备好温水与早餐以便抽血后立即补充能量。',
+                partnerTip: '全程陪同妈妈去医院完成第一次能看清宝宝全身轮廓与翻身动作的 NT 超声大关！'
+            },
+            13: {
+                fruit: '春日蜜桃', fruitType: 'peach', lengthCm: 7.4, weightG: 23, fhr: '148~162 bpm', fundal: '耻骨与肚脐间',
+                keyword: '迈入黄金孕中期 · 指纹独一无二成形',
+                babyTitle: '指尖长出全世界独一无二的指纹，声带与牙齿基底发育完成',
+                babyDesc: '宝宝的肠道正在从脐带部位归位到腹腔内，骨骼开始从软骨加速硬化为真正的骨头。如果您轻轻戳一戳肚皮，宝宝在里面可能会做出蠕动寻找的反应！',
+                organs: ['独一无二指纹', '20颗乳牙蕾', '长骨钙化加速'],
+                momTitle: '正式进入最舒适的“孕中期蜜月期”，流产风险大幅降低',
+                momDesc: '恶心感基本消退，睡眠与胃口显著改善。现在可以开始涂抹天然妊娠纹防护油，并将藻油 DHA 与钙片纳入每日补剂清单。',
+                partnerTip: '陪妈妈选购舒适的无钢圈哺乳内衣与托腹裤，周末安排一次轻松的公园散步。'
+            },
+            16: {
+                fruit: '奶油牛油果', fruitType: 'avocado', lengthCm: 11.6, weightG: 100, fhr: '145~158 bpm', fundal: '脐耻之间',
+                keyword: '初次胎动萌芽 · 听小骨硬化听见妈妈声音',
+                babyTitle: '面部肌肉可做出眯眼与微笑微表情，开始能隐约听见妈妈心跳',
+                babyDesc: '宝宝的双腿比手臂更长了，关节可以灵活屈伸。听小骨正在硬化，部分腹壁较薄的妈妈本周就能感受到像小鱼吐泡泡或蝴蝶煽动翅膀般的初次胎动。',
+                organs: ['听小骨传导声音', '面部微表情肌', '睫毛眉毛萌发'],
+                momTitle: '孕肚温柔显怀，皮肤与鼻黏膜受血容量增加影响略显敏感',
+                momDesc: '孕中期宝宝骨骼快速抽条，每日钙需求升至 1000mg。本周适合完成中期唐氏筛查或 NIPT 无创 DNA 检测。',
+                partnerTip: '为妈妈添置 U 型或 G 型孕妇侧卧枕，让夜间睡眠腰背部得到充分承托。'
+            },
+            20: {
+                fruit: '黄金甜香蕉', fruitType: 'banana', lengthCm: 25.0, weightG: 300, fhr: '140~155 bpm', fundal: '平齐肚脐高度',
+                keyword: '280天赛程过半 · 味蕾与白色胎脂形成',
+                babyTitle: '赛程正式满 50%！全身覆盖保护性胎脂，味蕾可分辨羊水甜味',
+                babyDesc: '从第 20 周起改用“头脚全长”测量身高。宝宝形成了规律的睡眠与苏醒周期，会在您安静躺下时翻身、踢腿或打嗝。',
+                organs: ['味蕾神经丛', '皮肤胎脂保护层', '规律睡眠周期'],
+                momTitle: '子宫底正好平齐肚脐，每天都能清晰感受到活跃胎动',
+                momDesc: '子宫增大压迫下腔静脉，久坐后脚踝可能轻微水肿。坐着办公时可在脚下垫一个小脚踏凳，并准备迎接 20~24 周四维大排畸超声。',
+                partnerTip: '庆祝孕期走完一半里程！陪妈妈拍一组20周纪念照，并确认大排畸超声预约时间。'
+            },
+            24: {
+                fruit: '饱满甜玉米', fruitType: 'corn', lengthCm: 30.0, weightG: 600, fhr: '142~152 bpm', fundal: '脐上 1 指',
+                keyword: '听觉敏锐期 · 肺泡表面活性物质合成',
+                babyTitle: '内耳前庭平衡系统成熟，能清晰感知妈妈散步与摇晃节奏',
+                babyDesc: '宝宝不仅能听到您的心跳和外界音乐，还能分辨您是站立还是躺下。肺部正在加紧制造“表面活性物质”，为出生后的自主呼吸打下基础。',
+                organs: ['肺泡表面活性物质', '内耳前庭平衡系', '汗腺结构形成'],
+                momTitle: '子宫底升至肚脐上方，迎来 75g OGTT 糖耐量筛查黄金期',
+                momDesc: '胎盘激素会使胰岛素敏感度下降，24~28周需空腹完成糖耐筛查。夜间若偶发小腿抽筋，睡前温水泡脚并补充柠檬酸钙与 D3 可显著缓解。',
+                partnerTip: '每晚睡前贴在肚皮旁和宝宝讲5分钟故事（低频男声极易穿透羊水），并帮妈妈按摩小腿。'
+            },
+            28: {
+                fruit: '紫亮圆茄子', fruitType: 'eggplant', lengthCm: 37.6, weightG: 1005, fhr: '138~150 bpm', fundal: '脐上 3 指',
+                keyword: '正式迈入孕晚期 · 睁眼与快速眼动做梦',
+                babyTitle: '体重突破 1 公斤大关！眼睑首次睁开，脑部皮层沟回急速加深',
+                babyDesc: '欢迎来到孕晚期！宝宝的眼睛已经能睁开并感知穿过肚皮的柔和光线，睡眠中出现了 REM（快速眼动期），说明宝宝已经在子宫里做梦了！',
+                organs: ['大脑皮层沟回', '视网膜光感反应', '皮下棕色脂肪'],
+                momTitle: '每日固定数胎动正式成为必修课，偶有假性宫缩发紧',
+                momDesc: '从第 28 周起产检加密为每 2 周一次。肚皮偶尔发紧发硬但无痛感属于 Braxton-Hicks 假性宫缩，休息即可缓解。',
+                partnerTip: '督促并陪伴妈妈每天早、中、晚固定1小时数胎动，开始采买待产包与婴儿安全座椅。'
+            },
+            32: {
+                fruit: '金黄哈密瓜', fruitType: 'melon', lengthCm: 42.4, weightG: 1700, fhr: '135~148 bpm', fundal: '脐与剑突之间',
+                keyword: '晚孕小排畸复查 · 胎位逐步固定为头位',
+                babyTitle: '手指甲脚趾甲完全长齐，绝大多数宝宝转为头朝下的标准头位',
+                babyDesc: '宝宝每周长肉约 200~250 克，子宫内空间变紧凑，胎动从大幅翻滚转为有力的肢体顶推。肺部与消化系统已接近完全成熟。',
+                organs: ['肺部成熟冲刺', '头位入盆预备', '母体免疫球蛋白传递'],
+                momTitle: '胃部受挤压易出现反酸烧心，睡眠宜采取左侧卧姿',
+                momDesc: '晚餐宜七分饱，餐后散步 20 分钟不要立即平躺。本周需完成 30~32 周晚孕期小排畸超声，评估胎位、羊水与胎盘成熟度。',
+                partnerTip: '把待产包分为“进产房包”与“住院母婴包”分装完毕，贴上标签放在玄关显眼处。'
+            },
+            36: {
+                fruit: '熟透木瓜', fruitType: 'papaya', lengthCm: 47.4, weightG: 2620, fhr: '132~146 bpm', fundal: '剑突下 2 指',
+                keyword: 'GBS 筛查与胎心监护 · 胎头入盆呼吸轻松',
+                babyTitle: '胎毛与胎脂逐渐脱落，吸吮肌肉发达，随时准备足月降生',
+                babyDesc: '再过 1 周宝宝就正式满 37 周“足月”啦！宝宝脸颊圆润饱满，肝脏正在储存大量铁质供出生后前6个月造血使用。',
+                organs: ['吸吮与吞咽协同', '胎头入盆衔接', '肝脏铁储备峰值'],
+                momTitle: '胎头下降入盆后胃部轻松、呼吸顺畅，但膀胱受压尿频加剧',
+                momDesc: '从 36 周起每周进行一次 NST 胎心监护，并完成 GBS（B族链球菌）筛查。注意区分规律真宫缩与假宫缩。',
+                partnerTip: '实地演练从家到医院产科急诊的行车路线与夜间停车位，手机保持 24 小时畅通。'
+            },
+            40: {
+                fruit: '圆润大西瓜', fruitType: 'watermelon', lengthCm: 51.2, weightG: 3400, fhr: '130~145 bpm', fundal: '脐与剑突间(已入盆)',
+                keyword: '40周满期绽放 · 迎接 2027.05.01 预产期盛放',
+                babyTitle: '全身器官 100% 发育成熟，只等发动信号与爸妈正式见面！',
+                babyDesc: '宝宝正在储存最后的母传 IgG 抗体。无论今天还是未来几天发动，您和宝宝都已经做好了最充分的准备！',
+                organs: ['全器官成熟就绪', '母传IgG抗体峰值', '肺部自主呼吸预备'],
+                momTitle: '密切留意三大临产信号：见红、规律宫缩（5-1-1法则）、破水',
+                momDesc: '若出现每 5 分钟一次、每次持续 1 分钟、持续 1 小时以上的规律宫缩，请拎起待产包从容前往医院；若破水请立即平躺垫高臀部就医！',
+                partnerTip: '给妈妈最坚定的拥抱与情绪安抚，确认证件袋、待产包、充电宝与相机随时可出发。'
+            }
+        };
+
+        // 周内 Day +0 ~ +6 逐日微变化引擎
+        const DAILY_MICRO_HIGHLIGHTS = [
+            { tag: 'Day +0 · 新孕周启航', suffix: '今天是进入新孕周的第一天，宝宝的细胞增殖与组织器官发育迈入新一轮加速周期。', momTip: '建议今日晨起测量一次体重并保存在右下方曲线中，记录新一周起点。' },
+            { tag: 'Day +1 · 神经元突触跃迁', suffix: '今日宝宝大脑神经元正以每分钟数十万个的速度建立突触连接，感知力日益敏锐。', momTip: '今天适合在膳食中增加深海鱼、核桃或按时补充藻油 DHA。' },
+            { tag: 'Day +2 · 胎盘微循环升级', suffix: '今日胎盘绒毛毛细血管网进一步致密化，母婴氧气与营养输送效率跃升。', momTip: '注意补充优质红肉、动物肝脏或温和铁剂，预防孕期生理性贫血。' },
+            { tag: 'Day +3 · 骨骼与肌力训练', suffix: '今日宝宝在羊水中进行了数十次伸展、转头与蹬腿练习，肌肉张力稳步增强。', momTip: '今天喝够 8 杯温水（2000ml），帮助羊水每 3 小时完成一次清澈置换。' },
+            { tag: 'Day +4 · 感官与反射精进', suffix: '今日宝宝的吞咽、握拳与眨眼神经反射回路更加娴熟，甚至会在睡梦中露出微笑。', momTip: '久坐每 45 分钟起身活动 3 分钟，舒展骨盆与腰背肌群。' },
+            { tag: 'Day +5 · 免疫与能量储备', suffix: '今日宝宝正在稳步合成皮下脂肪与肝糖原储备，为出生后的体温调节打好地基。', momTip: '晚餐用五谷杂粮替代三分之一精白米面，保持血糖平稳不飙升。' },
+            { tag: 'Day +6 · 周末母婴共振', suffix: '本周发育里程碑圆满收官！妈妈放松愉悦时分泌的内啡肽正通过胎盘温柔滋养宝宝。', momTip: '今天和准爸爸一起散步聊天，核对下一阶段的产检日程与问题清单。' }
+        ];
+
+        // 10 大核心产检全周期路线图（自动根据预产期计算精确日历区间）
+        const PRENATAL_CHECKUPS = [
+            { id: 'c-1', weekRange: '6~8周', minW: 6, maxW: 8, title: '第1关：早孕B超确认宫内孕与胎心胎芽', prep: '经腹需憋尿 / 经阴无需憋尿', desc: '确认胚胎着床位置、个数及原始心管搏动，核对孕周。' },
+            { id: 'c-2', weekRange: '11~13周+6', minW: 11, maxW: 13, title: '第2关：NT 颈项透明层彩超 + 正式建档', prep: '建档全套抽血需严格空腹', desc: '早期染色体筛查关键关（最佳12周左右）！满14周后透明层吸收无法补做，务必提前预约。' },
+            { id: 'c-3', weekRange: '15~20周', minW: 15, maxW: 20, title: '第3关：中期唐氏筛查 / NIPT 无创 DNA 检测', prep: '无创无需空腹 / 唐筛需空腹', desc: '排查胎儿 21-三体、18-三体、13-三体风险，无创准确率高达 99% 以上。' },
+            { id: 'c-4', weekRange: '20~24周', minW: 20, maxW: 24, title: '第4关：四维/三维大排畸系统超声', prep: '无需空腹，可备小甜点唤醒宝宝', desc: '全孕期最精细的胎儿全身结构大排查（脑、唇、四腔心、脊柱、肾脏及四肢）。' },
+            { id: 'c-5', weekRange: '24~28周', minW: 24, maxW: 28, title: '第5关：75g OGTT 糖耐量筛查（排查妊娠期糖尿病）', prep: '前一晚22点后禁食禁水，空腹抽血', desc: '空腹抽第1管血，5分钟内喝完300ml葡萄糖水，满1小时、2小时分别抽血。' },
+            { id: 'c-6', weekRange: '28~30周', minW: 28, maxW: 30, title: '第6关：孕晚期首检 + 血常规复查铁蛋白', prep: '常规尿检 + 血压宫高腹围', desc: '产检频率从每4周一次加密为每2周一次，重点排查孕晚期缺铁性贫血。' },
+            { id: 'c-7', weekRange: '30~32周', minW: 30, maxW: 32, title: '第7关：晚孕期小排畸超声 + 胎位羊水评估', prep: '无需空腹、无需憋尿', desc: '二次排查迟发性结构异常，确认胎位（头位/臀位）、胎盘位置与羊水指数。' },
+            { id: 'c-8', weekRange: '34周', minW: 34, maxW: 35, title: '第8关：首次 NST 胎心监护 + 心电图复查', prep: '餐后进行（宝宝活跃易一次性过关）', desc: '每次监护 20 分钟，观察胎动伴随的胎心加速反应，评估胎儿宫内氧储备。' },
+            { id: 'c-9', weekRange: '35~37周', minW: 35, maxW: 37, title: '第9关：GBS（B族链球菌）筛查 + 骨盆分娩评估', prep: '分泌物拭子采样（快速无痛）', desc: '若 GBS 阳性，临产时静脉滴注青霉素即可有效保护新生儿免受感染。' },
+            { id: 'c-10', weekRange: '37~40周', minW: 37, maxW: 40, title: '第10关：足月每周冲刺产检（NST + 临产超声估重）', prep: '每周1次，熟记5-1-1入院法则', desc: '监测羊水深度、双顶径与股骨长估算胎儿出生体重，随时迎接宝宝发动。' }
+        ];
+
+        const MOOD_OPTIONS = [
+            { id: 'energetic', emoji: '🥰', label: '元气满满' },
+            { id: 'calm', emoji: '🌿', label: '平静温和' },
+            { id: 'expectant', emoji: '✨', label: '期待喜悦' },
+            { id: 'tired', emoji: '🥱', label: '略感疲惫' },
+            { id: 'nausea', emoji: '🥺', label: '孕反不适' }
+        ];
+
+        const SYMPTOM_OPTIONS = [
+            '胃口改变', '嗜睡乏力', '恶心反胃', '乳房胀痛', '睡眠安稳', '胎动活跃', '轻微腰酸', '夜间尿频', '心情愉悦'
+        ];
+
+        /**
+         * ============================================================================
+         * 2. 根据所处孕周智能生成「今天要做什么」(含营养补剂/护理运动/产检筹备/伴侣协同)
+         * ============================================================================
+         */
+        function getStageDefaultTasks(week) {
+            if (week <= 13) {
+                return [
+                    { id: 't-folic', title: '服用活性叶酸 400~800μg + 维生素 B6（护航神经管与缓吐）', category: '营养补剂', time: '早餐后 30 分钟', micro: '底线：温水吞服叶酸1粒' },
+                    { id: 't-nt-prep', title: week >= 11 ? '核对 NT 彩超（11~13W+6）与正式建档空腹抽血预约单' : '记录早孕基础体温与 HCG/孕酮复查日程', category: '产检筹备', time: '本周关键产检任务', micro: '底线：将证件装入产检文件袋' },
+                    { id: 't-meals', title: '少食多餐（全天5~6顿）+ 涂抹天然胸部与腹部保湿乳', category: '护理运动', time: '全天温和护理', micro: '底线：床头备2片苏打饼干防晨吐' },
+                    { id: 't-early-sleep', title: '22:30 前开启勿扰模式入睡，保障胎盘绒毛高速构建', category: '护理运动', time: '晚间 22:30', micro: '底线：躺下做5次深长腹式呼吸' },
+                    { id: 't-partner-early', title: '准爸爸协同：包揽厨房油烟与重物，睡前陪妈妈散步15分钟', category: '伴侣协同', time: '晚餐后协同', micro: '底线：给妈妈倒一杯温柠檬水' }
+                ];
+            } else if (week <= 27) {
+                return [
+                    { id: 't-dha-iron', title: '补充藻油 DHA (200mg) + 孕产妇多维/温和铁剂', category: '营养补剂', time: '随早餐或午餐同服', micro: '底线：先服下 DHA 胶囊1粒' },
+                    { id: 't-calcium', title: '补充有机柠檬酸钙 + 维生素 D3（满足胎儿骨骼猛涨）', category: '营养补剂', time: '晚餐后或睡前1小时', micro: '底线：喝250ml温牛奶或服钙片' },
+                    { id: 't-stretch-oil', title: '沐浴后3分钟内黄金保湿期：涂抹妊娠纹油按摩肚皮与腰侧', category: '护理运动', time: '晚间沐浴后', micro: '底线：重点涂抹肚脐四周30秒' },
+                    { id: 't-walk-kegel', title: '餐后散步 25 分钟 + 凯格尔盆底肌温和收缩训练 3 组', category: '护理运动', time: '晚餐后 19:30', micro: '底线：慢走10分钟 + 凯格尔1组' },
+                    { id: 't-mid-checkup', title: week >= 23 ? '控糖饮食（杂粮替代1/3精米面），筹备 75g OGTT 糖耐筛查' : '核对四维大排畸超声档期，每日与宝宝进行音乐胎教', category: '产检筹备', time: '阶段产检筹备', micro: '底线：今日戒除含糖饮料与甜点' },
+                    { id: 't-partner-mid', title: '准爸爸协同：贴在肚皮旁和宝宝对话5分钟，帮妈妈按揉小腿', category: '伴侣协同', time: '睡前15分钟', micro: '底线：帮妈妈调整好孕妇侧卧枕' }
+                ];
+            } else {
+                return [
+                    { id: 't-kick-count', title: '早、中、晚固定各 1 小时安静数胎动（1小时 ≥3~5次为正常）', category: '护理运动', time: '餐后1小时左侧卧', micro: '底线：在下方胎动记录仪打卡满3次' },
+                    { id: 't-late-supp', title: '持续补充钙片 + 藻油 DHA + 铁剂（冲刺胎儿脑部与储铁）', category: '营养补剂', time: '早晚餐后分服（铁钙错开）', micro: '底线：确保铁剂与钙片错开2小时' },
+                    { id: 't-left-sleep', title: '使用孕妇枕支撑15~30°左侧卧，小腿垫高缓解下肢水肿', category: '护理运动', time: '午休与夜间睡眠', micro: '底线：脚踝下垫软垫抬高15分钟' },
+                    { id: 't-birth-bag', title: week >= 35 ? '终检待产包与入院证件袋，熟记“5-1-1”规律宫缩入院指征' : '分装待产包（产房包+母婴住院包）并练习拉玛泽呼吸法', category: '产检筹备', time: '每日练习 10 分钟', micro: '底线：练习3次慢吸气-吹蜡烛呼气' },
+                    { id: 't-partner-late', title: '准爸爸协同：手机24小时响铃，确认去医院路线并帮妈妈按摩腰骶', category: '伴侣协同', time: '全天护航待命', micro: '底线：检查汽车油量/电量与安全座椅' }
+                ];
+            }
+        }
+
+        /**
+         * ============================================================================
+         * 3. 全局状态与毫秒级 LocalStorage 持久缓存引擎
+         * ============================================================================
+         */
+        let state = {
+            momName: '准妈妈',
+            edd: DEFAULT_EDD, // 默认锁定 2027-05-01
+            lmp: DEFAULT_LMP, // 对应末次月经 2026-07-25
+            preWeight: null,
+            selectedWeek: 11,
+            selectedDay: 4, // 2026-10-14 对应孕 11周+4天
+            activeTodoCategory: '全部',
+            ambientTheme: 'bloom',
+            glassBlur: 30,
+            soundEnabled: true,
+            lastSavedAt: '',
+            // 按 "W{week}-D{day}" 存储每一天的所有记录
+            dailyLogs: {},
+            customTasks: [],
+            completedCheckups: [],
+            checkupNotes: {},
+            weightByWeek: {}
+        };
+
+        // 计算指定 (week, day) 对应的精确日历日期 YYYY-MM-DD
+        function getCalendarDateForWeekDay(week, day) {
+            const eddDate = new Date(state.edd + 'T00:00:00');
+            const totalDaysElapsed = week * 7 + day;
+            const daysRemaining = 280 - totalDaysElapsed;
+            const targetDate = new Date(eddDate.getTime() - daysRemaining * 86400000);
+            return targetDate;
+        }
+
+        function formatDateYMD(dateObj) {
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function getActiveDayKey() {
+            return `W${state.selectedWeek}-D${state.selectedDay}`;
+        }
+
+        function ensureActiveDayLog() {
+            const key = getActiveDayKey();
+            if (!state.dailyLogs[key]) {
+                state.dailyLogs[key] = {
+                    taskStates: {},
+                    waterCups: 0,
+                    kicks: [],
+                    mood: '',
+                    symptoms: [],
+                    memo: '',
+                    partnerDone: false,
+                    updatedAt: ''
+                };
+            }
+            return state.dailyLogs[key];
+        }
+
+        // 判断某一天是否有实质打卡记录（用于显示绿点与统计已记录天数）
+        function hasDayActivity(dayLog) {
+            if (!dayLog) return false;
+            const hasTask = Object.values(dayLog.taskStates || {}).some(v => v === 1 || v === 2);
+            const hasWater = (dayLog.waterCups || 0) > 0;
+            const hasKicks = (dayLog.kicks || []).length > 0;
+            const hasSyms = (dayLog.symptoms || []).length > 0;
+            const hasMemo = Boolean((dayLog.memo || '').trim());
+            return hasTask || hasWater || hasKicks || hasSyms || hasMemo || Boolean(dayLog.partnerDone);
+        }
+
+        function getRecordedDaysCount() {
+            return Object.keys(state.dailyLogs).filter(k => hasDayActivity(state.dailyLogs[k])).length;
+        }
+
+        function loadState() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    state = { ...state, ...parsed };
+                    if (!state.dailyLogs || typeof state.dailyLogs !== 'object') state.dailyLogs = {};
+                    if (!state.weightByWeek || typeof state.weightByWeek !== 'object') state.weightByWeek = {};
+                    syncWeekDayFromEdd(state.edd || DEFAULT_EDD, false);
+                    applyAmbientThemeStyles(state.ambientTheme || 'bloom');
+                    applyGlassBlurStyle(state.glassBlur || 30);
+                    return;
+                }
+            } catch (e) {
+                console.error('读取本地缓存失败:', e);
+            }
+
+            // 首次打开：按真实日期定位，所有每日记录保持空白，绝不凭空生成体重、产检与打卡。
+            state.edd = DEFAULT_EDD;
+            state.lmp = DEFAULT_LMP;
+            syncWeekDayFromEdd(state.edd, false);
+
+            applyAmbientThemeStyles(state.ambientTheme);
+            applyGlassBlurStyle(state.glassBlur);
+            saveState();
+        }
+
+        function saveState() {
+            try {
+                const nowStr = new Date().toTimeString().slice(0, 8);
+                state.lastSavedAt = nowStr;
+                const activeLog = state.dailyLogs[getActiveDayKey()];
+                if (activeLog) activeLog.updatedAt = nowStr;
+
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+                updateIslandCacheIndicator();
+            } catch (e) {
+                console.error('写入本地缓存失败:', e);
+                showToast('保存失败：请检查浏览器存储空间并立即导出备份', 'info');
+            }
+        }
+
+        function updateIslandCacheIndicator() {
+            const count = getRecordedDaysCount();
+            const statusEl = document.getElementById('islandCacheStatusText');
+            const detailEl = document.getElementById('islandDetailSyncTime');
+            const navBadge = document.getElementById('navSavedDaysBadge');
+            if (statusEl) statusEl.textContent = `已缓存 ${state.lastSavedAt || '刚刚'} · ${count}天记录`;
+            if (detailEl) detailEl.textContent = `最近自动保存：${state.lastSavedAt || '刚刚'} · 预产期 ${state.edd} · 累计记录 ${count} 天`;
+            if (navBadge) navBadge.textContent = count;
+        }
+
+        // 根据预产期 (默认 2027-05-01) 推算今日所处的真实孕周与天数
+        function syncWeekDayFromEdd(eddStr, showToastMsg = true) {
+            const eddDate = new Date(eddStr + 'T00:00:00');
+            const lmpDate = new Date(eddDate.getTime() - 280 * 86400000);
+            state.lmp = formatDateYMD(lmpDate);
+
+            const now = new Date();
+            const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const diffDays = Math.round((eddDate.getTime() - todayZero.getTime()) / 86400000);
+            const elapsed = Math.max(28, Math.min(280, 280 - diffDays));
+
+            state.selectedWeek = Math.min(40, Math.max(4, Math.floor(elapsed / 7)));
+            state.selectedDay = elapsed % 7;
+
+            if (showToastMsg) {
+                showToast(`📍 已对齐真实今日：孕 ${state.selectedWeek} 周 + ${state.selectedDay} 天 (预产期 ${state.edd})`, 'success');
+            }
+        }
+
+        /**
+         * ============================================================================
+         * 4. Apple 液态玻璃视觉材质、流光主题与鼠标镜面反射监听
+         * ============================================================================
+         */
+        function setAmbientTheme(themeKey) {
+            state.ambientTheme = themeKey;
+            applyAmbientThemeStyles(themeKey);
+            saveState();
+            renderWeightChart();
+        }
+
+        function applyAmbientThemeStyles(themeKey) {
+            const cfg = AMBIENT_THEMES[themeKey] || AMBIENT_THEMES.bloom;
+            const root = document.documentElement;
+            if (cfg.dark) {
+                root.classList.add('dark');
+                root.classList.remove('light');
+            } else {
+                root.classList.add('light');
+                root.classList.remove('dark');
+            }
+            root.style.setProperty('--bg-base', cfg.bg);
+            root.style.setProperty('--orb-1', cfg.orbs[0]);
+            root.style.setProperty('--orb-2', cfg.orbs[1]);
+            root.style.setProperty('--orb-3', cfg.orbs[2]);
+            root.style.setProperty('--orb-4', cfg.orbs[3]);
+
+            ['bloom', 'tahoe', 'amber', 'vision'].forEach(k => {
+                const btn = document.getElementById(`themeBtn-${k}`);
+                if (btn) {
+                    if (k === themeKey) {
+                        btn.classList.add('ring-2', 'ring-apple-rose', 'border-rose-400');
+                    } else {
+                        btn.classList.remove('ring-2', 'ring-apple-rose', 'border-rose-400');
+                    }
+                }
+            });
+        }
+
+        function updateGlassMaterial(blurVal) {
+            state.glassBlur = Number(blurVal);
+            applyGlassBlurStyle(state.glassBlur);
+            saveState();
+        }
+
+        function applyGlassBlurStyle(blurVal) {
+            document.documentElement.style.setProperty('--glass-blur', `${blurVal}px`);
+            const label = document.getElementById('glassBlurLabel');
+            const slider = document.getElementById('glassBlurSlider');
+            if (label) label.textContent = `${blurVal}px`;
+            if (slider) slider.value = blurVal;
+        }
+
+        // 鼠标移动实时驱动液态玻璃卡片表面镜面高光 (Cursor-Reactive Specular Glare)
+        document.addEventListener('mousemove', (e) => {
+            const cards = document.querySelectorAll('.liquid-glass-card');
+            cards.forEach(card => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                card.style.setProperty('--mouse-x', `${x}px`);
+                card.style.setProperty('--mouse-y', `${y}px`);
+            });
+        });
+
+        function toggleDynamicIsland(e) {
+            if (e) e.stopPropagation();
+            const panel = document.getElementById('islandExpandedPanel');
+            const chevron = document.getElementById('islandChevron');
+            const isHidden = panel.classList.contains('hidden');
+            if (isHidden) {
+                panel.classList.remove('hidden');
+                if (chevron) chevron.style.transform = 'rotate(180deg)';
+                playAppleSound('island');
+            } else {
+                panel.classList.add('hidden');
+                if (chevron) chevron.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function toggleControlCenter(e) {
+            if (e) e.stopPropagation();
+            const pop = document.getElementById('controlCenterPopover');
+            pop.classList.toggle('hidden');
+        }
+
+        document.addEventListener('click', () => {
+            const pop = document.getElementById('controlCenterPopover');
+            if (pop && !pop.classList.contains('hidden')) pop.classList.add('hidden');
+        });
+
+        /**
+         * ============================================================================
+         * 5. Web Audio API 合成 Apple iOS 晶莹玻璃水滴音效
+         * ============================================================================
+         */
+        let audioCtx = null;
+        function playAppleSound(type = 'check') {
+            if (!state.soundEnabled) return;
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'check') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(587.33, now); // D5
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.08); // A5
+                    osc.frequency.exponentialRampToValueAtTime(1174.66, now + 0.17); // D6
+                    gain.gain.setValueAtTime(0.11, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+                    osc.start(now);
+                    osc.stop(now + 0.22);
+                } else if (type === 'water') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(420, now);
+                    osc.frequency.exponentialRampToValueAtTime(760, now + 0.11);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+                    osc.start(now);
+                    osc.stop(now + 0.14);
+                } else if (type === 'island') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(320, now);
+                    osc.frequency.exponentialRampToValueAtTime(640, now + 0.1);
+                    gain.gain.setValueAtTime(0.07, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                    osc.start(now);
+                    osc.stop(now + 0.12);
+                }
+            } catch (e) {}
+        }
+
+        function toggleSound() {
+            state.soundEnabled = !state.soundEnabled;
+            const pill = document.getElementById('soundTogglePill');
+            if (pill) {
+                pill.textContent = state.soundEnabled ? '已开启' : '已静音';
+                pill.className = state.soundEnabled
+                    ? 'px-3 py-1 rounded-full text-xs font-bold bg-emerald-500 text-white'
+                    : 'px-3 py-1 rounded-full text-xs font-bold bg-slate-300 dark:bg-slate-700 text-slate-600 dark:text-slate-300';
+            }
+            if (state.soundEnabled) playAppleSound('check');
+            saveState();
+        }
+
+        /**
+         * ============================================================================
+         * 6. 智能插值获取任意孕周+天数数据 & 3D 风格果蔬 SVG 插画
+         * ============================================================================
+         */
+        function getWeekData(week, day) {
+            const keys = Object.keys(WEEKLY_ENCYCLOPEDIA).map(Number).sort((a, b) => a - b);
+            let nearestKey = keys[0];
+            for (const k of keys) {
+                if (week >= k) nearestKey = k;
+            }
+            const base = WEEKLY_ENCYCLOPEDIA[nearestKey];
+            const nextKey = keys.find(k => k > nearestKey) || 40;
+            const nextBase = WEEKLY_ENCYCLOPEDIA[nextKey];
+            const spanDays = Math.max(1, (nextKey - nearestKey) * 7);
+            const offsetDays = Math.max(0, (week - nearestKey) * 7 + day);
+            const ratio = Math.min(1, offsetDays / spanDays);
+
+            const interpLength = (base.lengthCm + (nextBase.lengthCm - base.lengthCm) * ratio).toFixed(1);
+            const interpWeight = Math.round(base.weightG + (nextBase.weightG - base.weightG) * ratio);
+            const micro = DAILY_MICRO_HIGHLIGHTS[day % 7];
+
+            return {
+                ...base,
+                interpLength,
+                interpWeight,
+                microTag: micro.tag,
+                combinedBabyDesc: `${base.babyDesc} ${micro.suffix}`,
+                combinedMomDesc: `${base.momDesc} ${micro.momTip}`
+            };
+        }
+
+        function getFruitSvgIllustration(fruitType) {
+            const svgMap = {
+                seed: `<svg viewBox="0 0 100 100" class="w-20 h-20"><circle cx="50" cy="50" r="28" fill="#ffe4e6"/><circle cx="50" cy="50" r="13" fill="#FF2D55"/><circle cx="45" cy="45" r="4" fill="#fff" opacity="0.85"/></svg>`,
+                berry: `<svg viewBox="0 0 100 100" class="w-20 h-20"><path d="M42 24 C46 14, 54 14, 58 24" stroke="#34C759" stroke-width="5" stroke-linecap="round" fill="none"/><circle cx="42" cy="46" r="11" fill="#e11d48"/><circle cx="58" cy="46" r="11" fill="#FF2D55"/><circle cx="36" cy="60" r="11" fill="#FF2D55"/><circle cx="50" cy="58" r="12" fill="#be123c"/><circle cx="64" cy="60" r="11" fill="#e11d48"/><circle cx="43" cy="72" r="10" fill="#e11d48"/><circle cx="57" cy="72" r="10" fill="#FF2D55"/></svg>`,
+                fig: `<svg viewBox="0 0 100 100" class="w-20 h-20"><path d="M50 18 C64 28, 76 48, 72 68 C68 84, 32 84, 28 68 C24 48, 36 28, 50 18 Z" fill="#8b5cf6"/><path d="M50 28 C60 36, 66 50, 63 65 C60 76, 40 76, 37 65 C34 50, 40 36, 50 28 Z" fill="#fb7185"/><circle cx="50" cy="58" r="9" fill="#f43f5e"/><path d="M50 12 L50 20" stroke="#34C759" stroke-width="4.5" stroke-linecap="round"/></svg>`,
+                citrus: `<svg viewBox="0 0 100 100" class="w-20 h-20"><ellipse cx="50" cy="54" rx="30" ry="24" fill="#84cc16"/><path d="M50 30 Q62 16 70 24 Q60 32 50 30" fill="#15803d"/><circle cx="40" cy="46" r="3.5" fill="#ecfccb" opacity="0.85"/></svg>`,
+                peach: `<svg viewBox="0 0 100 100" class="w-20 h-20"><path d="M50 26 C30 20, 18 42, 26 64 C34 80, 50 84, 50 84 C50 84, 66 80, 74 64 C82 42, 70 20, 50 26 Z" fill="#fb7185"/><path d="M50 26 Q62 14 72 22 Q62 30 50 26" fill="#34C759"/><circle cx="38" cy="46" r="4" fill="#fff" opacity="0.45"/></svg>`,
+                avocado: `<svg viewBox="0 0 100 100" class="w-20 h-20"><path d="M50 16 C66 16, 76 42, 74 64 C72 82, 28 82, 26 64 C24 42, 34 16, 50 16 Z" fill="#15803d"/><path d="M50 22 C62 22, 70 44, 68 62 C66 76, 34 76, 32 62 C30 44, 38 22, 50 22 Z" fill="#bef264"/><circle cx="50" cy="58" r="13" fill="#92400e"/><circle cx="46" cy="54" r="3.5" fill="#fff" opacity="0.5"/></svg>`,
+                banana: `<svg viewBox="0 0 100 100" class="w-20 h-20"><path d="M24 68 Q45 86 78 32 Q68 22 64 26 Q42 64 24 58 Z" fill="#facc15" stroke="#eab308" stroke-width="2"/><path d="M75 30 L80 24" stroke="#713f12" stroke-width="4" stroke-linecap="round"/></svg>`,
+                corn: `<svg viewBox="0 0 100 100" class="w-20 h-20"><rect x="35" y="20" width="30" height="54" rx="15" fill="#fbbf24"/><circle cx="44" cy="36" r="3" fill="#f59e0b"/><circle cx="55" cy="36" r="3" fill="#f59e0b"/><circle cx="44" cy="48" r="3" fill="#f59e0b"/><circle cx="55" cy="48" r="3" fill="#f59e0b"/><path d="M34 52 Q20 68 38 82 L50 76 Z" fill="#16a34a"/><path d="M66 52 Q80 68 62 82 L50 76 Z" fill="#22c55e"/></svg>`,
+                eggplant: `<svg viewBox="0 0 100 100" class="w-20 h-20"><path d="M46 22 C66 22, 74 48, 70 70 C66 86, 34 86, 30 68 C26 48, 34 22, 46 22 Z" fill="#7e22ce"/><path d="M38 24 L50 14 L62 24 L50 28 Z" fill="#16a34a"/><ellipse cx="42" cy="46" rx="4" ry="10" fill="#fff" opacity="0.25"/></svg>`,
+                melon: `<svg viewBox="0 0 100 100" class="w-20 h-20"><circle cx="50" cy="52" r="32" fill="#fcd34d" stroke="#f59e0b" stroke-width="3"/><path d="M50 20 Q36 52 50 84" stroke="#fde68a" stroke-width="2.5" fill="none"/><path d="M50 20 Q64 52 50 84" stroke="#fde68a" stroke-width="2.5" fill="none"/></svg>`,
+                papaya: `<svg viewBox="0 0 100 100" class="w-20 h-20"><ellipse cx="50" cy="54" rx="26" ry="32" fill="#fb923c"/><ellipse cx="50" cy="56" rx="14" ry="18" fill="#ea580c"/><circle cx="47" cy="52" r="2" fill="#1e293b"/><circle cx="53" cy="54" r="2" fill="#1e293b"/></svg>`,
+                watermelon: `<svg viewBox="0 0 100 100" class="w-20 h-20"><circle cx="50" cy="52" r="34" fill="#15803d"/><path d="M22 58 A28 28 0 0 0 78 58 Z" fill="#FF2D55" stroke="#bbf7d0" stroke-width="4"/><circle cx="42" cy="66" r="2" fill="#0f172a"/><circle cx="50" cy="70" r="2" fill="#0f172a"/><circle cx="58" cy="66" r="2" fill="#0f172a"/></svg>`
+            };
+            return svgMap[fruitType] || svgMap.fig;
+        }
+
+        /**
+         * ============================================================================
+         * 7. 全看板视图渲染引擎
+         * ============================================================================
+         */
+        function renderAll() {
+            ensureActiveDayLog();
+            renderTopBarAndKPIs();
+            renderTimeMachineScrubber();
+            renderWhatsHappeningToday();
+            renderWhatToDoToday();
+            renderWellnessStudio();
+            renderCheckupTimeline();
+            renderWeightChart();
+            updateIslandCacheIndicator();
+            lucide.createIcons();
+        }
+
+        function renderTopBarAndKPIs() {
+            const w = state.selectedWeek;
+            const d = state.selectedDay;
+            const totalDaysElapsed = w * 7 + d;
+            const pct = Math.min(100, ((totalDaysElapsed / 280) * 100).toFixed(1));
+            const remaining = Math.max(0, 280 - totalDaysElapsed);
+            const info = getWeekData(w, d);
+            const log = ensureActiveDayLog();
+
+            // 对应日历日期
+            const calDate = getCalendarDateForWeekDay(w, d);
+            const weekDaysZh = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+            const calDateStr = `${formatDateYMD(calDate)} (${weekDaysZh[calDate.getDay()]})`;
+
+            // 顶部导航与灵动岛文案
+            document.getElementById('navEddText').textContent = state.edd;
+            document.getElementById('navRealDateText').textContent = `预产期 ${state.edd} · 当前浏览：${calDateStr}`;
+            document.getElementById('islandWeekPill').textContent = `孕 ${w}周+${d}天`;
+            document.getElementById('islandFruitBadge').textContent = info.fruit;
+            document.getElementById('islandCountdownText').textContent = `距预产期 ${remaining}天`;
+
+            // KPI 1: 当前孕周
+            document.getElementById('kpiCurrentWeekTitle').textContent = `${w}周 + ${d}天`;
+            document.getElementById('kpiDayOf280Text').textContent = `第 ${totalDaysElapsed} / 280 天`;
+            document.getElementById('kpiProgressPctText').textContent = `${pct}%`;
+            document.getElementById('kpiProgressBar').style.width = `${pct}%`;
+
+            const triPill = document.getElementById('kpiTrimesterPill');
+            if (w <= 13) {
+                triPill.textContent = '第一孕期 · 孕早期';
+                triPill.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300';
+            } else if (w <= 27) {
+                triPill.textContent = '第二孕期 · 黄金孕中期';
+                triPill.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-apple-rose dark:text-rose-300';
+            } else {
+                triPill.textContent = '第三孕期 · 孕晚期冲刺';
+                triPill.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300';
+            }
+
+            // KPI 2: 倒计时
+            document.getElementById('kpiCountdownNumber').textContent = remaining;
+            document.getElementById('kpiEddLabel').textContent = state.edd;
+            document.getElementById('kpiLmpLabel').textContent = state.lmp;
+
+            // KPI 3: 宝宝参照物
+            document.getElementById('kpiFruitName').textContent = info.fruit;
+            document.getElementById('kpiSelectedDateText').textContent = `对应日历：${calDateStr}`;
+            document.getElementById('kpiFhrText').textContent = `参考 ${info.fhr}`;
+            document.getElementById('kpiLengthVal').textContent = `${info.interpLength} cm`;
+            document.getElementById('kpiWeightVal').textContent = info.interpWeight >= 1000
+                ? `${(info.interpWeight / 1000).toFixed(2)} kg`
+                : `${info.interpWeight} g`;
+
+            // KPI 4: Apple Activity 三环计算
+            const allTasks = getCombinedTodayTasks();
+            const doneTasks = allTasks.filter(t => log.taskStates[t.id] === 1 || log.taskStates[t.id] === 2).length;
+            const todoRatio = allTasks.length > 0 ? Math.min(1, doneTasks / allTasks.length) : 0;
+            const waterCups = log.waterCups || 0;
+            const waterRatio = Math.min(1, waterCups / 8);
+            const vitalCount = (log.kicks?.length > 0 ? 1 : 0) + (log.symptoms?.length > 0 ? 1 : 0) + (log.memo?.trim() ? 1 : 0);
+            const vitalRatio = Math.min(1, vitalCount / 2);
+
+            const overallPct = Math.round(((todoRatio + waterRatio + vitalRatio) / 3) * 100);
+            document.getElementById('kpiRingOverallPct').textContent = `${overallPct}%`;
+            document.getElementById('ringLabelTodo').textContent = `待办行动 ${doneTasks}/${allTasks.length}`;
+            document.getElementById('ringLabelWater').textContent = `饮水 ${waterCups * 250}/2000ml`;
+            document.getElementById('ringLabelVital').textContent = `互动 ${log.kicks?.length || 0}次 · 体感 ${log.symptoms?.length || 0}项`;
+
+            document.getElementById('appleRingTodo').style.strokeDashoffset = 213.6 * (1 - todoRatio);
+            document.getElementById('appleRingWater').style.strokeDashoffset = 160.2 * (1 - waterRatio);
+            document.getElementById('appleRingVital').style.strokeDashoffset = 106.8 * (1 - vitalRatio);
+        }
+
+        function renderTimeMachineScrubber() {
+            const w = state.selectedWeek;
+            const d = state.selectedDay;
+            document.getElementById('weekSlider').value = w;
+
+            const dayBar = document.getElementById('daySelectorBar');
+            dayBar.innerHTML = [0, 1, 2, 3, 4, 5, 6].map(dayIdx => {
+                const active = dayIdx === d;
+                const key = `W${w}-D${dayIdx}`;
+                const recorded = hasDayActivity(state.dailyLogs[key]);
+                const dateObj = getCalendarDateForWeekDay(w, dayIdx);
+                const mdStr = `${dateObj.getMonth() + 1}/${dateObj.getDate()}`;
+
+                return `
+                    <button onclick="selectDayInWeek(${dayIdx})"
+                        class="px-2 py-1.5 rounded-2xl text-center transition-all flex flex-col items-center justify-center relative ${
+                            active
+                                ? 'bg-gradient-to-b from-[#FF2D55] to-[#FF6482] text-white shadow-md shadow-rose-500/25 font-bold scale-105'
+                                : 'liquid-glass-pill text-slate-700 dark:text-slate-300 hover:border-rose-400'
+                        }">
+                        ${recorded ? `<span class="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ${active ? 'bg-white' : 'bg-emerald-500'}"></span>` : ''}
+                        <span class="text-xs font-mono">+${dayIdx}天</span>
+                        <span class="text-[10px] opacity-80 font-mono">${mdStr}</span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function renderWhatsHappeningToday() {
+            const info = getWeekData(state.selectedWeek, state.selectedDay);
+            const log = ensureActiveDayLog();
+
+            document.getElementById('todayStageKeyword').textContent = info.keyword;
+            document.getElementById('babyDailyMicroTag').textContent = info.microTag;
+            document.getElementById('fruitSvgContainer').innerHTML = getFruitSvgIllustration(info.fruitType);
+            document.getElementById('fruitNameText').textContent = info.fruit;
+            document.getElementById('fetalLengthText').textContent = `${info.interpLength} cm`;
+            document.getElementById('fetalWeightText').textContent = info.interpWeight >= 1000
+                ? `${(info.interpWeight / 1000).toFixed(2)} kg`
+                : `${info.interpWeight} g`;
+            document.getElementById('fetalHeartRateText').textContent = info.fhr;
+            document.getElementById('fundalHeightText').textContent = info.fundal;
+
+            document.getElementById('babyOrgansTagList').innerHTML = info.organs.map(org => `
+                <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/10 text-apple-rose dark:text-rose-300 border border-rose-500/20">
+                    ✦ ${escapeHtml(org)}
+                </span>
+            `).join('');
+
+            document.getElementById('babyWhatHappenedTitle').textContent = info.babyTitle;
+            document.getElementById('babyWhatHappenedDesc').textContent = info.combinedBabyDesc;
+            document.getElementById('momWhatHappenedTitle').textContent = info.momTitle;
+            document.getElementById('momWhatHappenedDesc').textContent = info.combinedMomDesc;
+            document.getElementById('partnerTipText').textContent = info.partnerTip;
+
+            const pBtn = document.getElementById('partnerDoneBtn');
+            if (log.partnerDone) {
+                pBtn.textContent = '✅ 准爸爸今日已执行';
+                pBtn.className = 'px-3.5 py-2 rounded-2xl text-xs font-bold shrink-0 transition-all bg-emerald-500 text-white shadow-sm';
+            } else {
+                pBtn.textContent = '👏 标记准爸爸已执行';
+                pBtn.className = 'px-3.5 py-2 rounded-2xl text-xs font-bold shrink-0 transition-all liquid-glass-pill text-amber-700 dark:text-amber-300';
+            }
+        }
+
+        function getCombinedTodayTasks() {
+            return [...getStageDefaultTasks(state.selectedWeek), ...state.customTasks];
+        }
+
+        function renderWhatToDoToday() {
+            const log = ensureActiveDayLog();
+            const allTasks = getCombinedTodayTasks();
+            const categories = ['全部', '营养补剂', '护理运动', '产检筹备', '伴侣协同'];
+
+            document.getElementById('todoCategoryBar').innerHTML = categories.map(cat => {
+                const active = state.activeTodoCategory === cat;
+                const count = cat === '全部' ? allTasks.length : allTasks.filter(t => t.category === cat).length;
+                return `
+                    <button onclick="setTodoCategory('${cat}')"
+                        class="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex-1 text-center ${
+                            active
+                                ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm'
+                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                        }">
+                        ${cat} (${count})
+                    </button>
+                `;
+            }).join('');
+
+            const doneCount = allTasks.filter(t => log.taskStates[t.id] === 1 || log.taskStates[t.id] === 2).length;
+            document.getElementById('todoCountBadge').textContent = `${doneCount}/${allTasks.length} 已达成`;
+
+            const filtered = state.activeTodoCategory === '全部'
+                ? allTasks
+                : allTasks.filter(t => t.category === state.activeTodoCategory);
+
+            const listEl = document.getElementById('todoListContainer');
+            listEl.innerHTML = filtered.map(task => {
+                const val = log.taskStates[task.id] || 0;
+                let btnStyle = 'border-slate-300 dark:border-slate-600 bg-white/70 dark:bg-slate-800/70 text-transparent';
+                let iconHtml = '<i data-lucide="check" class="w-4 h-4"></i>';
+                let badgeHtml = '';
+
+                if (val === 1) {
+                    btnStyle = 'bg-emerald-500 border-emerald-500 text-white shadow-sm shadow-emerald-500/30';
+                    iconHtml = '<i data-lucide="check" class="w-4 h-4 stroke-[2.8]"></i>';
+                    badgeHtml = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">✅ 完整达成</span>';
+                } else if (val === 2) {
+                    btnStyle = 'bg-amber-500 border-amber-500 text-white shadow-sm shadow-amber-500/30';
+                    iconHtml = '<i data-lucide="zap" class="w-4 h-4 fill-white"></i>';
+                    badgeHtml = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-300">⚡ 保底完成</span>';
+                }
+
+                return `
+                    <div onclick="cycleTodoTask('${task.id}')" class="p-3.5 rounded-[22px] bg-white/65 dark:bg-slate-900/60 border border-white/80 dark:border-white/10 hover:border-rose-300 transition-all cursor-pointer flex items-start justify-between gap-3">
+                        <div class="flex items-start gap-3 min-w-0 flex-1">
+                            <button type="button" class="w-7 h-7 rounded-xl border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${btnStyle}">
+                                ${iconHtml}
+                            </button>
+                            <div class="space-y-1 min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-1.5">
+                                    <span class="text-xs sm:text-sm font-bold ${val === 1 ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'}">
+                                        ${escapeHtml(task.title)}
+                                    </span>
+                                    ${badgeHtml}
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                                    <span class="font-semibold text-apple-indigo dark:text-indigo-300">${escapeHtml(task.category)}</span>
+                                    <span>· ${escapeHtml(task.time)}</span>
+                                    ${task.micro ? `<span class="text-amber-600 dark:text-amber-400 font-medium">⚡ ${escapeHtml(task.micro)}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        ${task.isCustom ? `
+                            <button type="button" onclick="event.stopPropagation(); deleteCustomTask('${task.id}')" class="p-1.5 text-slate-400 hover:text-rose-500">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderWellnessStudio() {
+            const log = ensureActiveDayLog();
+            const cups = log.waterCups || 0;
+            document.getElementById('waterVolumeText').textContent = `${cups * 250} / 2000 ml`;
+
+            let waterHtml = '';
+            for (let i = 1; i <= 8; i++) {
+                const filled = i <= cups;
+                waterHtml += `
+                    <button onclick="setWaterCups(${i})"
+                        class="h-14 rounded-2xl border transition-all flex flex-col items-center justify-center gap-0.5 ${
+                            filled
+                                ? 'bg-gradient-to-b from-[#32ADE6] to-[#007AFF] border-sky-300 text-white shadow-md shadow-sky-500/25 scale-100'
+                                : 'bg-white/60 dark:bg-slate-900/60 border-white/80 dark:border-white/10 text-slate-400 hover:border-sky-300'
+                        }">
+                        <i data-lucide="droplet" class="w-4 h-4 ${filled ? 'fill-white' : ''}"></i>
+                        <span class="text-[10px] font-mono font-bold">${i * 250}</span>
+                    </button>
+                `;
+            }
+            document.getElementById('waterCupsGrid').innerHTML = waterHtml;
+
+            // 胎动 / 宝宝互动
+            const kicks = Array.isArray(log.kicks) ? log.kicks : [];
+            document.getElementById('kickCountText').textContent = kicks.length;
+            document.getElementById('lastKickTimeText').textContent = kicks.length > 0
+                ? `最近记录于 ${kicks[kicks.length - 1]}`
+                : '点击右侧按钮打下今日时间戳';
+
+            document.getElementById('kickHistoryPills').innerHTML = kicks.length > 0
+                ? kicks.map((t, idx) => `
+                    <span class="px-2.5 py-0.5 rounded-full bg-rose-500/12 text-apple-rose dark:text-rose-300 font-mono font-bold border border-rose-500/20 shrink-0">
+                        #${idx + 1} ${t}
+                    </span>
+                `).join('')
+                : '<span class="text-slate-400 text-[11px]">今日尚无记录，摸摸肚皮和宝宝打个招呼吧</span>';
+
+            // 心情与体感标签
+            document.getElementById('moodSelectorGrid').innerHTML = MOOD_OPTIONS.map(m => {
+                const active = log.mood === m.id;
+                return `
+                    <button onclick="selectMood('${m.id}')"
+                        class="p-2 rounded-2xl border text-center transition-all ${
+                            active
+                                ? 'bg-gradient-to-b from-rose-500/20 to-amber-500/15 border-apple-rose text-slate-900 dark:text-white font-bold shadow-sm scale-105'
+                                : 'bg-white/60 dark:bg-slate-900/60 border-white/75 dark:border-white/10 text-slate-500'
+                        }">
+                        <div class="text-lg">${m.emoji}</div>
+                        <div class="text-[10px] mt-0.5 truncate">${m.label}</div>
+                    </button>
+                `;
+            }).join('');
+
+            const selectedSyms = Array.isArray(log.symptoms) ? log.symptoms : [];
+            document.getElementById('symptomPillsGrid').innerHTML = SYMPTOM_OPTIONS.map(sym => {
+                const active = selectedSyms.includes(sym);
+                return `
+                    <button onclick="toggleSymptom('${sym}')"
+                        class="px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all ${
+                            active
+                                ? 'bg-apple-rose border-apple-rose text-white shadow-xs'
+                                : 'bg-white/60 dark:bg-slate-900/60 border-white/75 dark:border-white/10 text-slate-600 dark:text-slate-300'
+                        }">
+                        ${sym}
+                    </button>
+                `;
+            }).join('');
+
+            const memoInput = document.getElementById('dailyMemoInput');
+            if (memoInput && document.activeElement !== memoInput) {
+                memoInput.value = log.memo || '';
+            }
+        }
+
+        // 渲染 10 大产检通关路线图（自动根据预产期 2027-05-01 计算每一关的精确日历窗口）
+        function renderCheckupTimeline() {
+            const doneList = state.completedCheckups || [];
+            document.getElementById('checkupHeaderEdd').textContent = state.edd;
+            document.getElementById('checkupProgressBadge').textContent = `已通关 ${doneList.length} / ${PRENATAL_CHECKUPS.length} 关`;
+
+            const container = document.getElementById('checkupTimelineContainer');
+            container.innerHTML = PRENATAL_CHECKUPS.map(item => {
+                const isDone = doneList.includes(item.id);
+                const isCurrentWindow = state.selectedWeek >= item.minW && state.selectedWeek <= item.maxW;
+
+                const startDate = formatDateYMD(getCalendarDateForWeekDay(item.minW, 0)).replace(/-/g, '.');
+                const endDate = formatDateYMD(getCalendarDateForWeekDay(item.maxW, 6)).replace(/-/g, '.');
+                const noteVal = (state.checkupNotes && state.checkupNotes[item.id]) || '';
+
+                return `
+                    <div class="p-4 rounded-[24px] border transition-all ${
+                        isCurrentWindow
+                            ? 'bg-rose-500/10 border-apple-rose ring-1 ring-apple-rose/30'
+                            : isDone
+                                ? 'bg-emerald-500/8 border-emerald-500/30'
+                                : 'bg-white/60 dark:bg-slate-900/55 border-white/75 dark:border-white/10'
+                    }">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex items-start gap-3 flex-1">
+                                <button onclick="toggleCheckupDone('${item.id}')"
+                                    class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-all ${
+                                        isDone
+                                            ? 'bg-emerald-500 text-white shadow-sm'
+                                            : isCurrentWindow
+                                                ? 'bg-apple-rose text-white animate-pulse'
+                                                : 'border-2 border-slate-300 dark:border-slate-600 text-transparent'
+                                    }">
+                                    <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <div class="space-y-1 flex-1">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold bg-slate-900/10 dark:bg-white/10">
+                                            ${item.weekRange} (${startDate}~${endDate.slice(5)})
+                                        </span>
+                                        <h4 class="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white">${escapeHtml(item.title)}</h4>
+                                        ${isCurrentWindow ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-apple-rose text-white">当前孕周重点</span>' : ''}
+                                    </div>
+                                    <div class="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                                        ⚠️ ${escapeHtml(item.prep)}
+                                    </div>
+                                    <p class="text-xs text-slate-600 dark:text-slate-300">${escapeHtml(item.desc)}</p>
+                                    <!-- 产检结果数值内联备忘（自动缓存） -->
+                                    <div class="pt-1.5">
+                                        <input type="text"
+                                            value="${escapeHtml(noteVal)}"
+                                            oninput="saveCheckupNote('${item.id}', this.value)"
+                                            placeholder="点击记录本关产检结果备忘（如：NT 1.2mm 顺利通过）..."
+                                            class="w-full px-3 py-1.5 rounded-xl text-[11px] bg-white/75 dark:bg-slate-900/75 border border-slate-200/70 dark:border-white/10 focus:outline-none focus:ring-1 focus:ring-apple-rose">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 渲染 Apple Health 风格 SVG 孕期增重走廊曲线图
+        const WEIGHT_WEEKS = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40];
+        const REC_MIN_GAIN = [0.0, 0.3, 1.0, 2.2, 3.8, 5.4, 7.0, 8.6, 10.2, 11.5];
+        const REC_MAX_GAIN = [0.5, 1.2, 2.0, 3.8, 5.8, 7.8, 10.0, 12.2, 14.2, 16.0];
+
+        function renderWeightChart() {
+            const container = document.getElementById('weightSvgContainer');
+            if (!container) return;
+
+            const w = state.selectedWeek;
+            document.getElementById('weightInputWeekLabel').textContent = `${w}W体重:`;
+            const validPreWeight = Number.isFinite(Number(state.preWeight)) && Number(state.preWeight) > 0;
+            document.getElementById('preWeightLabel').textContent = validPreWeight ? Number(state.preWeight).toFixed(1) : '待填写';
+
+            const wInput = document.getElementById('currentWeightInput');
+            if (wInput && document.activeElement !== wInput) {
+                const recordedW = state.weightByWeek[w];
+                wInput.value = Number.isFinite(Number(recordedW)) && Number(recordedW) > 0 ? recordedW : '';
+            }
+
+            const width = 560;
+            const height = 220;
+            const padL = 38;
+            const padR = 16;
+            const padT = 18;
+            const padB = 28;
+            const chartW = width - padL - padR;
+            const chartH = height - padT - padB;
+            const maxGainY = 18;
+
+            const isDark = document.documentElement.classList.contains('dark');
+            const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.07)';
+            const textColor = isDark ? '#94a3b8' : '#64748b';
+
+            const getX = (wk) => padL + ((wk - 4) / 36) * chartW;
+            const getY = (gain) => padT + chartH - (Math.max(0, Math.min(maxGainY, gain)) / maxGainY) * chartH;
+
+            const gridSvg = [0, 4, 8, 12, 16].map(val => {
+                const y = getY(val);
+                return `
+                    <line x1="${padL}" y1="${y}" x2="${width - padR}" y2="${y}" stroke="${gridColor}" stroke-dasharray="3 3"/>
+                    <text x="${padL - 6}" y="${y + 4}" text-anchor="end" fill="${textColor}" font-size="10" font-family="JetBrains Mono">+${val}kg</text>
+                `;
+            }).join('');
+
+            const upperPts = WEIGHT_WEEKS.map((wk, i) => `${getX(wk)},${getY(REC_MAX_GAIN[i])}`);
+            const lowerPts = [...WEIGHT_WEEKS].reverse().map((wk, idx) => {
+                const origIdx = WEIGHT_WEEKS.length - 1 - idx;
+                return `${getX(wk)},${getY(REC_MIN_GAIN[origIdx])}`;
+            });
+            const corridorPolygon = [...upperPts, ...lowerPts].join(' ');
+
+            const preW = validPreWeight ? Number(state.preWeight) : 0;
+            const actualPoints = [];
+            Object.keys(state.weightByWeek).map(Number).sort((a, b) => a - b).forEach(wk => {
+                if (validPreWeight && wk >= 4 && wk <= 40) {
+                    const gain = Number((state.weightByWeek[wk] - preW).toFixed(1));
+                    actualPoints.push({ wk, weight: state.weightByWeek[wk], gain, x: getX(wk), y: getY(gain) });
+                }
+            });
+
+            const actualLinePath = actualPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+            const activeX = getX(w);
+
+            const xLabelsSvg = WEIGHT_WEEKS.map(wk => `
+                <text x="${getX(wk)}" y="${height - 6}" text-anchor="middle" fill="${wk === w ? '#FF2D55' : textColor}" font-size="10" font-weight="${wk === w ? '800' : '500'}" font-family="JetBrains Mono">${wk}W</text>
+            `).join('');
+
+            const dotsSvg = actualPoints.map(p => `
+                <g>
+                    <circle cx="${p.x}" cy="${p.y}" r="${p.wk === w ? 6 : 4.5}" fill="#FF2D55" stroke="#ffffff" stroke-width="2"/>
+                    <text x="${p.x}" y="${p.y - 9}" text-anchor="middle" fill="#FF2D55" font-size="10" font-weight="700" font-family="JetBrains Mono">+${p.gain}kg</text>
+                </g>
+            `).join('');
+
+            container.innerHTML = `
+                <svg viewBox="0 0 ${width} ${height}" class="w-full h-full overflow-visible">
+                    ${gridSvg}
+                    <polygon points="${corridorPolygon}" fill="rgba(52, 199, 89, 0.16)" stroke="rgba(52, 199, 89, 0.45)" stroke-width="1.2" stroke-dasharray="4 2"/>
+                    <line x1="${activeX}" y1="${padT}" x2="${activeX}" y2="${padT + chartH}" stroke="#FF2D55" stroke-width="1.5" stroke-dasharray="2 2" opacity="0.6"/>
+                    <path d="${actualLinePath}" fill="none" stroke="#FF2D55" stroke-width="2.8" stroke-linecap="round"/>
+                    ${dotsSvg}
+                    ${xLabelsSvg}
+                </svg>
+            `;
+
+            const curW = Number(state.weightByWeek[w]);
+            if (!validPreWeight || !Number.isFinite(curW) || curW <= 0) {
+                document.getElementById('weightDiagnosticText').textContent = '请先填写孕前体重并记录当前孕周的实际体重；绿色区域仅是示意，实际增重目标需结合孕前 BMI 与产检建议。';
+            } else {
+                const curGain = (curW - preW).toFixed(1);
+                document.getElementById('weightDiagnosticText').textContent = `孕 ${w} 周实际体重 ${curW.toFixed(1)} kg，较孕前变化 ${curGain} kg。绿色区域为示意，不能代替医生的个体化评估。`;
+            }
+        }
+
+        /**
+         * ============================================================================
+         * 8. 交互事件控制与弹窗处理函数
+         * ============================================================================
+         */
+        function handleWeekSliderChange(val) {
+            state.selectedWeek = Number(val);
+            saveState();
+            renderAll();
+        }
+
+        function jumpToWeek(wk) {
+            state.selectedWeek = Number(wk);
+            state.selectedDay = 0;
+            playAppleSound('island');
+            saveState();
+            renderAll();
+            showToast(`✨ 已预览孕 ${wk} 周阶段指南`, 'info');
+        }
+
+        function selectDayInWeek(dayIdx) {
+            state.selectedDay = Number(dayIdx);
+            playAppleSound('water');
+            saveState();
+            renderAll();
+        }
+
+        function stepDay(delta) {
+            let total = state.selectedWeek * 7 + state.selectedDay + delta;
+            total = Math.max(28, Math.min(286, total));
+            state.selectedWeek = Math.min(40, Math.max(4, Math.floor(total / 7)));
+            state.selectedDay = total % 7;
+            playAppleSound('water');
+            saveState();
+            renderAll();
+        }
+
+        function jumpToRealToday() {
+            syncWeekDayFromEdd(state.edd, true);
+            playAppleSound('check');
+            saveState();
+            renderAll();
+        }
+
+        function setTodoCategory(cat) {
+            state.activeTodoCategory = cat;
+            renderWhatToDoToday();
+            lucide.createIcons();
+        }
+
+        function cycleTodoTask(taskId) {
+            const log = ensureActiveDayLog();
+            const cur = log.taskStates[taskId] || 0;
+            const next = cur === 0 ? 1 : (cur === 1 ? 2 : 0);
+            log.taskStates[taskId] = next;
+
+            if (next === 1) playAppleSound('check');
+            else if (next === 2) {
+                playAppleSound('water');
+                showToast('⚡ 已记录疲惫日微习惯保底完成', 'info');
+            }
+            saveState();
+            renderTopBarAndKPIs();
+            renderTimeMachineScrubber();
+            renderWhatToDoToday();
+            lucide.createIcons();
+        }
+
+        function quickCompleteSupplements() {
+            const log = ensureActiveDayLog();
+            const allTasks = getCombinedTodayTasks();
+            allTasks.forEach(t => {
+                if (t.category === '营养补剂') log.taskStates[t.id] = 1;
+            });
+            playAppleSound('check');
+            saveState();
+            renderAll();
+            showToast('💊 已一键完成今日营养补剂打卡并保存', 'success');
+        }
+
+        function handleInlineAddTask(e) {
+            e.preventDefault();
+            const titleInput = document.getElementById('inlineTaskTitle');
+            const catSelect = document.getElementById('inlineTaskCat');
+            const title = titleInput.value.trim();
+            if (!title) return;
+
+            const newTask = {
+                id: 'custom-' + Date.now(),
+                title,
+                category: catSelect.value,
+                time: '自定义行动',
+                micro: '底线：2分钟微行动完成',
+                isCustom: true
+            };
+            state.customTasks.unshift(newTask);
+            const log = ensureActiveDayLog();
+            log.taskStates[newTask.id] = 1;
+
+            titleInput.value = '';
+            playAppleSound('check');
+            saveState();
+            renderAll();
+            showToast(`✨ 已新增并缓存待办「${title}」`, 'success');
+        }
+
+        function deleteCustomTask(taskId) {
+            state.customTasks = state.customTasks.filter(t => t.id !== taskId);
+            saveState();
+            renderAll();
+            showToast('已删除自定义待办项', 'info');
+        }
+
+        function togglePartnerDoneToday() {
+            const log = ensureActiveDayLog();
+            log.partnerDone = !log.partnerDone;
+            playAppleSound('check');
+            saveState();
+            renderWhatsHappeningToday();
+            renderTimeMachineScrubber();
+            if (log.partnerDone) showToast('🤝 已标记准爸爸今日护航行动完成！', 'success');
+        }
+
+        function setWaterCups(cups) {
+            const log = ensureActiveDayLog();
+            log.waterCups = log.waterCups === cups ? cups - 1 : cups;
+            playAppleSound('water');
+            saveState();
+            renderTopBarAndKPIs();
+            renderTimeMachineScrubber();
+            renderWellnessStudio();
+            lucide.createIcons();
+            if (log.waterCups === 8) showToast('💧 今日 2000ml 羊水焕新饮水目标圆满达成！', 'success');
+        }
+
+        function adjustWaterCups(delta) {
+            const log = ensureActiveDayLog();
+            log.waterCups = Math.max(0, Math.min(8, (log.waterCups || 0) + delta));
+            playAppleSound('water');
+            saveState();
+            renderTopBarAndKPIs();
+            renderTimeMachineScrubber();
+            renderWellnessStudio();
+            lucide.createIcons();
+        }
+
+        function quickAddWaterFromIsland() {
+            adjustWaterCups(1);
+            showToast('💧 已通过灵动岛快捷记录 +1 杯水 (250ml)', 'success');
+        }
+
+        function recordFetalKick() {
+            const log = ensureActiveDayLog();
+            const timeStr = new Date().toTimeString().slice(0, 5);
+            log.kicks.push(timeStr);
+            playAppleSound('check');
+            saveState();
+            renderTopBarAndKPIs();
+            renderTimeMachineScrubber();
+            renderWellnessStudio();
+            showToast(`💓 已记录第 ${log.kicks.length} 次宝宝胎动/互动 (${timeStr})`, 'success');
+        }
+
+        function undoFetalKick() {
+            const log = ensureActiveDayLog();
+            if (log.kicks.length > 0) {
+                log.kicks.pop();
+                saveState();
+                renderTopBarAndKPIs();
+                renderWellnessStudio();
+            }
+        }
+
+        function selectMood(moodId) {
+            const log = ensureActiveDayLog();
+            log.mood = moodId;
+            playAppleSound('water');
+            saveState();
+            renderWellnessStudio();
+        }
+
+        function toggleSymptom(sym) {
+            const log = ensureActiveDayLog();
+            if (!Array.isArray(log.symptoms)) log.symptoms = [];
+            if (log.symptoms.includes(sym)) {
+                log.symptoms = log.symptoms.filter(s => s !== sym);
+            } else {
+                log.symptoms.push(sym);
+            }
+            playAppleSound('water');
+            saveState();
+            renderTopBarAndKPIs();
+            renderTimeMachineScrubber();
+            renderWellnessStudio();
+        }
+
+        function handleDailyMemoInput(val) {
+            const log = ensureActiveDayLog();
+            log.memo = val;
+            saveState();
+            renderTimeMachineScrubber();
+        }
+
+        function saveCurrentWeekWeight() {
+            const val = parseFloat(document.getElementById('currentWeightInput').value);
+            if (isNaN(val) || val < 35 || val > 150) return;
+            state.weightByWeek[state.selectedWeek] = Number(val.toFixed(1));
+            playAppleSound('check');
+            saveState();
+            renderWeightChart();
+            showToast(`📈 已缓存孕 ${state.selectedWeek} 周体重：${val.toFixed(1)} kg`, 'success');
+        }
+
+        function toggleCheckupDone(checkupId) {
+            const idx = state.completedCheckups.indexOf(checkupId);
+            if (idx === -1) {
+                state.completedCheckups.push(checkupId);
+                playAppleSound('check');
+                showToast('🎉 恭喜通关该项核心产检！已持久保存', 'success');
+            } else {
+                state.completedCheckups.splice(idx, 1);
+            }
+            saveState();
+            renderCheckupTimeline();
+            lucide.createIcons();
+        }
+
+        function saveCheckupNote(checkupId, val) {
+            if (!state.checkupNotes) state.checkupNotes = {};
+            state.checkupNotes[checkupId] = val;
+            saveState();
+        }
+
+        // 弹窗 1：预产期设定
+        function openEddModal() {
+            document.getElementById('eddDateInput').value = state.edd;
+            document.getElementById('lmpDateInput').value = state.lmp || DEFAULT_LMP;
+            document.getElementById('momNameInput').value = state.momName || '准妈妈';
+            document.getElementById('prePregnancyWeightInput').value = state.preWeight ?? '';
+            const m = document.getElementById('eddModal');
+            m.classList.remove('hidden');
+            m.classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function closeEddModal() {
+            const m = document.getElementById('eddModal');
+            m.classList.add('hidden');
+            m.classList.remove('flex');
+        }
+
+        function resetToDefault20270501() {
+            document.getElementById('eddDateInput').value = DEFAULT_EDD;
+            document.getElementById('lmpDateInput').value = DEFAULT_LMP;
+        }
+
+        function calcEddFromLmp(lmpStr) {
+            if (!lmpStr) return;
+            const d = new Date(lmpStr + 'T00:00:00');
+            d.setDate(d.getDate() + 280);
+            document.getElementById('eddDateInput').value = formatDateYMD(d);
+        }
+
+        function handleSaveEdd(e) {
+            e.preventDefault();
+            state.edd = document.getElementById('eddDateInput').value || DEFAULT_EDD;
+            state.momName = document.getElementById('momNameInput').value.trim() || '准妈妈';
+            const enteredPreWeight = parseFloat(document.getElementById('prePregnancyWeightInput').value);
+            state.preWeight = Number.isFinite(enteredPreWeight) && enteredPreWeight > 0 ? enteredPreWeight : null;
+            syncWeekDayFromEdd(state.edd, true);
+            saveState();
+            closeEddModal();
+            renderAll();
+        }
+
+        // 弹窗 2：历史足迹与备份中心
+        function openHistoryModal() {
+            const listEl = document.getElementById('historyTimelineList');
+            const keys = Object.keys(state.dailyLogs).filter(k => hasDayActivity(state.dailyLogs[k]));
+
+            if (keys.length === 0) {
+                listEl.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">暂无历史打卡记录</div>`;
+            } else {
+                listEl.innerHTML = keys.sort().reverse().map(k => {
+                    const match = k.match(/W(\d+)-D(\d+)/);
+                    const wk = match ? Number(match[1]) : 11;
+                    const dy = match ? Number(match[2]) : 0;
+                    const log = state.dailyLogs[k];
+                    const calStr = formatDateYMD(getCalendarDateForWeekDay(wk, dy));
+                    const doneTasksCount = Object.values(log.taskStates || {}).filter(v => v === 1 || v === 2).length;
+                    const moodObj = MOOD_OPTIONS.find(m => m.id === log.mood) || { emoji: '▫️', label: '未记录' };
+
+                    return `
+                        <div onclick="jumpFromHistory(${wk}, ${dy})" class="p-3.5 rounded-2xl bg-white/75 dark:bg-slate-900/75 border border-slate-200/70 dark:border-white/10 hover:border-apple-rose cursor-pointer flex items-center justify-between gap-3 transition-all">
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2 py-0.5 rounded-lg text-xs font-mono font-bold bg-rose-500/15 text-apple-rose">
+                                        孕 ${wk}周+${dy}天 (${calStr})
+                                    </span>
+                                    <span class="text-xs font-semibold">${moodObj.emoji} ${moodObj.label}</span>
+                                </div>
+                                <div class="text-[11px] text-slate-500 dark:text-slate-400">
+                                    ✅ 待办达成 ${doneTasksCount} 项 · 💧 饮水 ${(log.waterCups || 0) * 250}ml · 💓 互动 ${(log.kicks || []).length} 次
+                                    ${log.memo ? ` · 📝 "${escapeHtml(log.memo.slice(0, 28))}"` : ''}
+                                </div>
+                            </div>
+                            <span class="text-xs font-bold text-apple-blue shrink-0">查看该日 →</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            const m = document.getElementById('historyModal');
+            m.classList.remove('hidden');
+            m.classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function closeHistoryModal() {
+            const m = document.getElementById('historyModal');
+            m.classList.add('hidden');
+            m.classList.remove('flex');
+        }
+
+        function jumpFromHistory(wk, dy) {
+            state.selectedWeek = wk;
+            state.selectedDay = dy;
+            closeHistoryModal();
+            playAppleSound('island');
+            saveState();
+            renderAll();
+            showToast(`已跳转至孕 ${wk}周+${dy}天历史记录`, 'success');
+        }
+
+        function exportBackupJson() {
+            const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `BloomOS_孕期备份_EDD_${state.edd}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('📦 已导出孕期完整 JSON 备份文件', 'success');
+        }
+
+        function handleImportBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed && typeof parsed === 'object' && /^\d{4}-\d{2}-\d{2}$/.test(parsed.edd || '') && parsed.dailyLogs && typeof parsed.dailyLogs === 'object') {
+                        if (getRecordedDaysCount() > 0 && !confirm('导入备份将覆盖当前设备的孕期记录。请先导出当前数据，确定继续吗？')) return;
+                        state = { ...state, ...parsed };
+                        saveState();
+                        renderAll();
+                        closeHistoryModal();
+                        showToast('🎉 已成功导入并恢复孕期历史数据！', 'success');
+                    }
+                } catch (err) {
+                    showToast('解析备份文件失败，请确认格式正确', 'info');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // 弹窗 3：今日简报分享
+        function openSummaryModal() {
+            const info = getWeekData(state.selectedWeek, state.selectedDay);
+            const log = ensureActiveDayLog();
+            const allTasks = getCombinedTodayTasks();
+            const doneTasks = allTasks.filter(t => log.taskStates[t.id] === 1 || log.taskStates[t.id] === 2);
+            const moodObj = MOOD_OPTIONS.find(m => m.id === log.mood) || { emoji: '▫️', label: '未记录' };
+            const calStr = formatDateYMD(getCalendarDateForWeekDay(state.selectedWeek, state.selectedDay));
+
+            const report = [
+                `🌸 【BloomOS · 孕期每日护航简报】`,
+                `📅 日期：${calStr} | 孕 ${state.selectedWeek} 周 + ${state.selectedDay} 天（预产期：${state.edd}）`,
+                `👶 宝宝今日体型：像一颗「${info.fruit}」（身长约 ${info.interpLength}cm，体重约 ${info.interpWeight}g）`,
+                `✨ 今日宝宝发生了什么：${info.babyTitle}`,
+                `🤝 准爸爸今日护航建议：${info.partnerTip}`,
+                `----------------------------------------`,
+                `✅ 今日行动达成：${doneTasks.length} / ${allTasks.length} 项`,
+                `💧 今日羊水饮水：${(log.waterCups || 0) * 250} / 2000 ml (${log.waterCups || 0}杯)`,
+                `💓 胎动/胎教互动：${(log.kicks || []).length} 次`,
+                `😊 妈妈状态：${moodObj.emoji} ${moodObj.label} | 体感：${(log.symptoms || []).join('、') || '未记录'}`,
+                log.memo ? `📝 今日孕期手记：${log.memo}` : ''
+            ].filter(Boolean).join('\n');
+
+            document.getElementById('summaryReportContent').textContent = report;
+            const m = document.getElementById('summaryModal');
+            m.classList.remove('hidden');
+            m.classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function closeSummaryModal() {
+            const m = document.getElementById('summaryModal');
+            m.classList.add('hidden');
+            m.classList.remove('flex');
+        }
+
+        function copySummaryReport() {
+            const text = document.getElementById('summaryReportContent').textContent;
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            playAppleSound('check');
+            showToast('📋 已复制今日孕期简报，可直接粘贴发送给准爸爸或家人！', 'success');
+        }
+
+        function escapeHtml(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function showToast(msg, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const el = document.createElement('div');
+            el.className = `liquid-glass-card px-4 py-2.5 rounded-2xl text-xs font-bold shadow-2xl flex items-center gap-2 animate-spring-pop ${
+                type === 'success' ? 'text-apple-rose dark:text-rose-300' : 'text-slate-800 dark:text-white'
+            }`;
+            el.innerHTML = `<span class="w-2 h-2 rounded-full bg-apple-rose"></span><span>${escapeHtml(msg)}</span>`;
+            container.appendChild(el);
+            setTimeout(() => {
+                el.style.opacity = '0';
+                el.style.transition = 'opacity 0.25s ease';
+                setTimeout(() => el.remove(), 250);
+            }, 2600);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadState();
+            renderAll();
+        });
+        window.addEventListener('load', () => {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('./sw.js').catch(e => console.warn('离线缓存注册失败：', e));
+            }
+        });
+    </script>
+</body>
+</html>

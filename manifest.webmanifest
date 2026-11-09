@@ -1,0 +1,26 @@
+{
+  "id": "./",
+  "name": "BloomOS 孕期全景看板",
+  "short_name": "Bloom孕期",
+  "description": "孕期记录、产检日历、体重和日常备份，默认仅保存在本机",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F6F5F8",
+  "theme_color": "#F6F5F8",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
